@@ -51,7 +51,6 @@ def test_chart():
     )
 
     chart = ops.Chart(
-        data(),
         title="Uswitch reliability",
         formatter="{x:.3%}",
         plots=[

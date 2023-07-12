@@ -219,7 +219,6 @@ class Monthly(Plot):
 class Chart:
     def __init__(
         self,
-        df: pd.DataFrame,
         title: Optional[str] = None,
         formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
         plots: list[type[Plot]] = [],
