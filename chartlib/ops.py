@@ -70,37 +70,15 @@ class Plot:
         self.series = series
         self.increments = increments
 
-    def _plot(
-        self,
-        ax: plt.Axes,
-        df: pd.DataFrame,
-        y_formatter: Formatter,
-    ):
-        bounds = self._bounds(df)
+    def data(self, raw: pd.DataFrame) -> pd.DataFrame:
+        bounds = self._bounds(raw)
 
-        ax.xaxis.set_major_formatter(self._x_formatter())
+        return pd.concat(
+            [self._series_data(raw, bounds, series) for series in self.series],
+            axis=1,
+        )
 
-        for series in self.series:
-            series_df = self._series_df(df, bounds, series)
-
-            if series.offset is None:
-                ax.xaxis.set_ticks(series_df.index)
-
-            ax.plot(
-                series_df,
-                label=series.label,
-                **series.style._asdict(),
-            )
-
-            if series.annotations is not None:
-                for point in series_df.items():
-                    ax.annotate(
-                        y_formatter.format_data(point[1]),
-                        point,
-                        **series.annotations._asdict(),
-                    )
-
-    def _series_df(
+    def _series_data(
         self,
         df: pd.DataFrame,
         bounds: Bounds,
@@ -111,11 +89,44 @@ class Plot:
         if series.offset is not None:
             series_df.index = pd.to_datetime(series_df.index).date + series.offset
 
-        return (
+        data = (
             series_df.loc[time_window(bounds)]
             .groupby(self._clamp)[series.columns]
             .apply(series.agg)
         )
+
+        if isinstance(data, pd.DataFrame):
+            data.columns = [series.label]
+        elif isinstance(data, pd.Series):
+            data.name = series.label
+
+        return data
+
+    def _plot(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        y_formatter: Formatter,
+    ):
+        data = self.data(df)
+
+        ax.xaxis.set_ticks(data.index)
+        ax.xaxis.set_major_formatter(self._x_formatter())
+
+        for series in self.series:
+            ax.plot(
+                data[series.label],
+                label=series.label,
+                **series.style._asdict(),
+            )
+
+            if series.annotations is not None:
+                for point in data[series.label].items():
+                    ax.annotate(
+                        y_formatter.format_data(point[1]),
+                        point,
+                        **series.annotations._asdict(),
+                    )
 
     def _x_formatter(self) -> Formatter:
         raise NotImplementedError()
@@ -205,53 +216,61 @@ class Monthly(Plot):
         return datetime(dt.year, dt.month, 1)
 
 
-def Chart(
-    df: pd.DataFrame,
-    title: Optional[str] = None,
-    formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
-    plots: list[type[Plot]] = [],
-):
-    num_plots = len(plots)
+class Chart:
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        title: Optional[str] = None,
+        formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
+        plots: list[type[Plot]] = [],
+    ):
+        assert len(plots) > 0
 
-    assert num_plots > 0
+        if isinstance(formatter, str):
+            formatter = StrMethodFormatter(formatter)
 
-    if isinstance(formatter, str):
-        formatter = StrMethodFormatter(formatter)
+        self.title = title
+        self.formatter = formatter
+        self.plots = plots
 
-    fig, axs = plt.subplots(
-        1,
-        num_plots,
-        figsize=(sum(plot.increments for plot in plots) * 0.8, 5),
-        gridspec_kw={"width_ratios": [plot.increments for plot in plots]},
-        sharey=True,
-    )
+    def plot(self, df):
+        fig, axs = plt.subplots(
+            1,
+            len(self.plots),
+            figsize=(sum(plot.increments for plot in self.plots) * 0.8, 5),
+            gridspec_kw={"width_ratios": [plot.increments for plot in self.plots]},
+            sharey=True,
+        )
 
-    if title is not None:
-        fig.suptitle(title)
+        if self.title is not None:
+            fig.suptitle(self.title)
 
-    for pos, ax, plot in zip(range(num_plots), axs, plots):
-        plot._plot(ax, df, formatter)
+        for pos, ax, plot in zip(range(len(self.plots)), axs, self.plots):
+            plot._plot(ax, df, self.formatter)
 
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
 
-        if pos > 0:
-            ax.spines["left"].set_visible(False)
-            plt.setp(ax.get_yticklines(), visible=False)
+            if pos > 0:
+                ax.spines["left"].set_visible(False)
+                plt.setp(ax.get_yticklines(), visible=False)
 
-        ax.grid(visible=True, which="major", axis="y", alpha=0.3)
-        ax.yaxis.set_major_formatter(formatter)
-        ax.tick_params(axis="both", which="major", labelsize=9)
+            ax.grid(visible=True, which="major", axis="y", alpha=0.3)
+            ax.yaxis.set_major_formatter(self.formatter)
+            ax.tick_params(axis="both", which="major", labelsize=9)
 
-        for label in ax.get_xticklabels():
-            label.set_fontweight(700)
+            for label in ax.get_xticklabels():
+                label.set_fontweight(700)
 
-        _add_legend(ax, [s.label for s in plot.series])
+            _add_legend(ax, [s.label for s in plot.series])
 
-    plt.tight_layout()
-    plt.subplots_adjust(bottom=0.12)
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.12)
 
-    return fig
+        return fig
+
+    def data(self, df):
+        return [plot.data(df) for plot in self.plots]
 
 
 def _add_legend(ax, labels):

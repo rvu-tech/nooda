@@ -63,7 +63,7 @@ def test_chart():
         ],
     )
 
-    chart.savefig("tests/test_chart.png")
+    chart.plot(data()).savefig("tests/test_chart.png")
 
 
 def test_chart_no_plots():
@@ -164,7 +164,7 @@ def test_monthly_series_df():
     )
 
     df = data()
-    series_df = monthly._series_df(df, monthly._bounds(df), series)
-    offset_df = monthly._series_df(df, monthly._bounds(df), offset_series)
+    series_df = monthly._series_data(df, monthly._bounds(df), series)
+    offset_df = monthly._series_data(df, monthly._bounds(df), offset_series)
 
     assert series_df.index.max() == offset_df.index.max()
