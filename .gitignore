@@ -1,1 +1,5 @@
 tests/*.png
+__pycache__
+.vscode
+/dist
+.pytest_cache

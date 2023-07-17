@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from chartlib import ops, agg, fonts
+from nooda.chart import ops, agg, fonts
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
