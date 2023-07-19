@@ -231,6 +231,8 @@ class Chart:
         title: Optional[str] = None,
         formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
         plots: list[type[Plot]] = [],
+        height: int = 5,
+        width_increment: float = 0.5,
     ):
         assert len(plots) > 0
 
@@ -240,12 +242,17 @@ class Chart:
         self.title = title
         self.formatter = formatter
         self.plots = plots
+        self.height = height
+        self.width_increment = width_increment
 
     def plot(self, df):
         fig, axs = plt.subplots(
             1,
             len(self.plots),
-            figsize=(sum(plot.increments for plot in self.plots) * 0.8, 5),
+            figsize=(
+                sum(plot.increments for plot in self.plots) * self.width_increment,
+                self.height,
+            ),
             gridspec_kw={"width_ratios": [plot.increments for plot in self.plots]},
             sharey=True,
         )
