@@ -87,7 +87,9 @@ class Plot:
         series_df = df.copy()
 
         if series.offset is not None:
-            series_df.index = pd.to_datetime(series_df.index).date + series.offset
+            series_df.index = (
+                pd.to_datetime(series_df.index).to_pydatetime() + series.offset
+            )
 
         data = (
             series_df.loc[time_window(bounds)]
@@ -152,15 +154,18 @@ class Daily(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("%m/%d"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        latest_d = pd.to_datetime(df.index.max()).date()
+        max_dt = pd.to_datetime(df.index.max())
+        latest_d = max_dt.date()
 
-        latest_dt = datetime(latest_d.year, latest_d.month, latest_d.day)
+        latest_dt = datetime(
+            latest_d.year, latest_d.month, latest_d.day, tzinfo=max_dt.tzinfo
+        )
         earliest_dt = latest_dt - relativedelta(days=self.days)
 
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        return datetime(dt.year, dt.month, dt.day)
+        return datetime(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
 
 
 class Weekly(Plot):
@@ -177,17 +182,18 @@ class Weekly(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("Wk\n%m/%d"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        latest_d = pd.to_datetime(df.index.max()).date()
+        max_dt = pd.to_datetime(df.index.max())
+        latest_d = max_dt.date()
 
         latest_dt = self._clamp(
-            datetime(latest_d.year, latest_d.month, latest_d.day)
+            datetime(latest_d.year, latest_d.month, latest_d.day, tzinfo=max_dt.tzinfo)
         ) + relativedelta(weeks=1)
         earliest_dt = latest_dt - relativedelta(weeks=self.weeks)
 
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        day = datetime(dt.year, dt.month, dt.day)
+        day = datetime(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
         return day - relativedelta(days=day.weekday())
 
 
@@ -205,15 +211,18 @@ class Monthly(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("%b"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        latest_d = pd.to_datetime(df.index.max()).date()
+        max_dt = pd.to_datetime(df.index.max())
+        latest_d = max_dt.date()
 
-        latest_dt = datetime(latest_d.year, latest_d.month, 1) + relativedelta(months=1)
+        latest_dt = datetime(
+            latest_d.year, latest_d.month, 1, tzinfo=max_dt.tzinfo
+        ) + relativedelta(months=1)
         earliest_dt = latest_dt - relativedelta(months=self.months)
 
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        return datetime(dt.year, dt.month, 1)
+        return datetime(dt.year, dt.month, 1, tzinfo=dt.tzinfo)
 
 
 class Chart:
