@@ -11,3 +11,10 @@ def ratio(num, denom):
 def avg_daily(xs):
     days = relativedelta(xs.index.max(), xs.index.min()).days + 1
     return xs.sum() / days
+
+
+def p(percentile):
+    def fn(xs):
+        return xs.quantile(percentile / 100)
+
+    return fn
