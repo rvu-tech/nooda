@@ -33,13 +33,14 @@ def _line_magic(line):
 
     response = send(args.channel, val, back_url=url)
 
-    display(
-        {
-            MIME_TYPE: json.dumps(response._asdict()),
-        },
-        raw=True,
-        metadata={
-            MIME_TYPE: {},
-        },
-        include=[MIME_TYPE],
-    )
+    if response is not None:
+        display(
+            {
+                MIME_TYPE: json.dumps(response._asdict()),
+            },
+            raw=True,
+            metadata={
+                MIME_TYPE: {},
+            },
+            include=[MIME_TYPE],
+        )

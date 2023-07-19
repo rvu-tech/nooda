@@ -1,8 +1,10 @@
 import io
 import os
+import sys
 
 from collections import namedtuple
 from slack_sdk import WebClient
+from typing import Optional, Any
 
 
 def get_file_thread(file, channel_id):
@@ -21,7 +23,13 @@ def get_file_thread(file, channel_id):
 Response = namedtuple("Response", ["channel", "ts", "back_url"])
 
 
-def send(channel, val, back_url=None):
+def send(channel: str, val: Any, back_url: Optional[str] = None) -> Optional[Response]:
+    slack_token = os.getenv("SLACK_TOKEN")
+
+    if slack_token is None:
+        print("SLACK_TOKEN not set, skipping slack send", file=sys.stderr)
+        return None
+
     slack_client = WebClient(token=os.getenv("SLACK_TOKEN"))
 
     ts = None
