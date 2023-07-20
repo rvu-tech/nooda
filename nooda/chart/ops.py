@@ -95,6 +95,7 @@ class Plot:
             series_df.loc[time_window(bounds)]
             .groupby(self._clamp)[series.columns]
             .apply(series.agg)
+            .dropna()
         )
 
         if isinstance(data, pd.DataFrame):
