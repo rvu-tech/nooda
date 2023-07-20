@@ -3,6 +3,7 @@ import matplotlib.ticker
 import matplotlib.pyplot as plt
 import numpy as np
 
+from calendar import monthrange
 from collections import namedtuple
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
@@ -304,3 +305,25 @@ def _add_legend(ax, labels):
         frameon=False,
         fontsize=8,
     )
+
+
+def split_month_by_day(df, val_column, month_column="month", day_column="day"):
+    df[day_column] = df.apply(
+        lambda row: pd.date_range(
+            row[month_column],
+            row[month_column] + relativedelta(months=1),
+            freq="D",
+            inclusive="left",
+        ),
+        axis="columns",
+    )
+    df["__days_in_month"] = df.apply(
+        lambda row: monthrange(row[month_column].year, row[month_column].month)[1],
+        axis="columns",
+    )
+
+    df = df.explode(day_column)
+
+    df[val_column] = df[val_column] / df["__days_in_month"]
+
+    return df.drop(columns=[month_column, "__days_in_month"])

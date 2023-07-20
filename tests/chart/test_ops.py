@@ -167,3 +167,19 @@ def test_monthly_series_df():
     offset_df = monthly._series_data(df, monthly._bounds(df), offset_series)
 
     assert series_df.index.max() == offset_df.index.max()
+
+
+def test_split_month_by_day():
+    df = pd.DataFrame(
+        data={
+            "month": [pd.to_datetime("2023-06-01")],
+            "cost": [30.0],
+        }
+    )
+
+    split_df = ops.split_month_by_day(df, "cost")
+
+    assert split_df.shape == (30, 2)
+    assert split_df["cost"].sum() == 30.0
+    assert split_df["day"].unique()[0] == pd.to_datetime("2023-06-01")
+    assert split_df["day"].unique()[29] == pd.to_datetime("2023-06-30")
