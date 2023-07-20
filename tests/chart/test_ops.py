@@ -96,7 +96,7 @@ def test_monthly():
     df = data()
     monthly = ops.Monthly(
         series=[
-            ops.Series("values", label="Values", agg=sum),
+            ops.Series("total_num", label="Values", agg=sum),
         ],
         months=13,
     )
@@ -113,7 +113,7 @@ def test_weekly():
     df = data()
     weekly = ops.Weekly(
         series=[
-            ops.Series("values", label="Values", agg=sum),
+            ops.Series("total_num", label="Values", agg=sum),
         ],
         weeks=3,
     )
@@ -130,7 +130,7 @@ def test_daily():
     df = data()
     daily = ops.Daily(
         series=[
-            ops.Series("values", label="Values", agg=sum),
+            ops.Series("total_num", label="Values", agg=sum),
         ],
         days=13,
     )

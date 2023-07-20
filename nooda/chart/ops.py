@@ -65,11 +65,13 @@ class Plot:
         self,
         series: list[Series],
         increments: int,
+        range_columns: Optional[list[str]] = None,
     ):
         assert len([s for s in series if s.offset is None]) > 0
 
         self.series = series
         self.increments = increments
+        self.range_columns = range_columns
 
     def data(self, raw: pd.DataFrame) -> pd.DataFrame:
         bounds = self._bounds(raw)
@@ -132,6 +134,13 @@ class Plot:
                         **series.annotations._asdict(),
                     )
 
+    def _max_dt(self, df: pd.DataFrame):
+        if self.range_columns is not None:
+            series_columns = self.range_columns
+        else:
+            series_columns = [col for s in self.series for col in s.columns]
+        return pd.to_datetime(df[df[series_columns].notnull().any(axis=1)].index.max())
+
     def _x_formatter(self) -> Formatter:
         raise NotImplementedError()
 
@@ -147,8 +156,9 @@ class Daily(Plot):
         self,
         series: list[Series],
         days: int = 7,
+        range_columns: Optional[list[str]] = None,
     ):
-        super().__init__(series=series, increments=days)
+        super().__init__(series=series, increments=days, range_columns=range_columns)
 
         self.days = days
 
@@ -156,7 +166,7 @@ class Daily(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("%m/%d"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        max_dt = pd.to_datetime(df.index.max())
+        max_dt = self._max_dt(df)
         latest_d = max_dt.date()
 
         latest_dt = datetime(
@@ -175,8 +185,9 @@ class Weekly(Plot):
         self,
         series: list[Series],
         weeks: int = 6,
+        range_columns: Optional[list[str]] = None,
     ):
-        super().__init__(series=series, increments=weeks)
+        super().__init__(series=series, increments=weeks, range_columns=range_columns)
 
         self.weeks = weeks
 
@@ -184,7 +195,7 @@ class Weekly(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("Wk\n%m/%d"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        max_dt = pd.to_datetime(df.index.max())
+        max_dt = self._max_dt(df)
         latest_d = max_dt.date()
 
         latest_dt = self._clamp(
@@ -204,8 +215,9 @@ class Monthly(Plot):
         self,
         series: list[Series],
         months: int = 12,
+        range_columns: Optional[list[str]] = None,
     ):
-        super().__init__(series=series, increments=months)
+        super().__init__(series=series, increments=months, range_columns=range_columns)
 
         self.months = months
 
@@ -213,7 +225,7 @@ class Monthly(Plot):
         return FuncFormatter(lambda d, _: num2date(d).strftime("%b"))
 
     def _bounds(self, df: pd.DataFrame) -> datetime:
-        max_dt = pd.to_datetime(df.index.max())
+        max_dt = self._max_dt(df)
         latest_d = max_dt.date()
 
         latest_dt = datetime(
