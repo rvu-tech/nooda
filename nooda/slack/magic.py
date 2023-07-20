@@ -3,6 +3,7 @@ import io
 import json
 import nooda.publish
 import os
+import sys
 
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display
@@ -11,29 +12,51 @@ from nooda.vendor.databricks import running_in_databricks, notebook_url
 from .send import send
 
 
+LAST_RESPONSE_VAR = "__slack_last_response"
 MIME_TYPE = "application/vnd.nooda.slack+json"
 
 
-@magic_arguments()
-@argument("-u", "--url", help="A URL to reference this notebook")
-@argument("channel", type=str, help="the channel to send the message to")
-@argument("var", type=str, help="the var to send to slack")
-def _line_magic(line):
-    args = parse_argstring(_line_magic, line)
+def _var_or_string(raw, ip):
+    out = None
 
-    if not args.var.isidentifier():
-        raise NameError(f"Expecting an identifier, not {args.var}")
+    if raw is not None:
+        if raw.isidentifier():
+            out = ip.user_ns.get(raw, ip)
+            if out is ip:
+                raise NameError(f"Undefined variable {raw}")
+            elif out is None:
+                raise ValueError(f"Variable {raw} is None")
+        elif raw.startswith('"') and raw.endswith('"'):
+            out = raw[1:-1]
+        elif raw.startswith("'") and raw.endswith("'"):
+            out = raw[1:-1]
+        else:
+            raise NameError(f"Expecting an identifier or quoted string, not {raw}")
+
+    return out
+
+
+@magic_arguments()
+@argument(
+    "--markdown",
+    help="A var that contains slack mrkdwn to append if sending a file",
+    default=None,
+)
+@argument("channel", type=str, help="the channel to send the message to")
+@argument("message", type=str, help="the var or string to send to slack")
+def _slack_line_magic(line):
+    args = parse_argstring(_slack_line_magic, line)
 
     ip = IPython.get_ipython()
-    val = ip.user_ns.get(args.var, ip)  # ip serves as a sentinel
 
-    url = args.url
-    if url is None and running_in_databricks():
-        url = notebook_url()
+    channel = _var_or_string(args.channel, ip)
+    message = _var_or_string(args.message, ip)
+    markdown = _var_or_string(args.markdown, ip)
 
-    response = send(args.channel, val, back_url=url)
+    response = send(channel, message, markdown=markdown)
 
-    if response is not None:
+    ip.user_ns[LAST_RESPONSE_VAR] = response
+    if response.successful:
         display(
             {
                 MIME_TYPE: json.dumps(response._asdict()),
@@ -44,3 +67,24 @@ def _line_magic(line):
             },
             include=[MIME_TYPE],
         )
+
+
+@magic_arguments()
+@argument(
+    "--markdown",
+    help="A var that contains slack mrkdwn to append if sending a file",
+    default=None,
+)
+@argument("message", type=str, help="the var or string to send to slack")
+def _slack_thread_line_magic(line):
+    args = parse_argstring(_slack_thread_line_magic, line)
+    ip = IPython.get_ipython()
+
+    last_response = ip.user_ns.get(LAST_RESPONSE_VAR, None)
+    if last_response is None:
+        raise ValueError("No previous response to reply to, use %slack first")
+
+    message = _var_or_string(args.message, ip)
+    markdown = _var_or_string(args.markdown, ip)
+
+    send(last_response.channel, message, markdown=markdown, thread_ts=last_response.ts)
