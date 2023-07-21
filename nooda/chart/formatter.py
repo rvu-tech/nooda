@@ -1,3 +1,5 @@
+import pandas as pd
+
 from datetime import timedelta
 from dateutil import relativedelta
 from matplotlib.ticker import FuncFormatter

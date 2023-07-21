@@ -251,7 +251,8 @@ class Chart:
         formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
         plots: list[type[Plot]] = [],
         height: int = 5,
-        width_increment: float = 0.5,
+        width_increment: float = 0.7,
+        y_limits: Optional[tuple[float, float]] = None,
     ):
         assert len(plots) > 0
 
@@ -263,6 +264,7 @@ class Chart:
         self.plots = plots
         self.height = height
         self.width_increment = width_increment
+        self.y_limits = y_limits
 
     def plot(self, df):
         fig, axs = plt.subplots(
@@ -276,11 +278,18 @@ class Chart:
             sharey=True,
         )
 
+        # if there's only one plot, axs is a single axis, not an array
+        if len(self.plots) == 1:
+            axs = [axs]
+
         if self.title is not None:
             fig.suptitle(self.title)
 
         for pos, ax, plot in zip(range(len(self.plots)), axs, self.plots):
             plot._plot(ax, df, self.formatter)
+
+            if self.y_limits is not None:
+                ax.set_ylim(self.y_limits)
 
             if self.formatter is not None:
                 ax.yaxis.set_major_formatter(self.formatter)
