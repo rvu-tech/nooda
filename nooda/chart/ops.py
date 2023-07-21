@@ -179,7 +179,8 @@ class Daily(Plot):
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        return datetime(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
+        tzinfo = dt.tzinfo if "tzinfo" in dir(dt) else None
+        return datetime(dt.year, dt.month, dt.day, tzinfo=tzinfo)
 
 
 class Weekly(Plot):
@@ -208,7 +209,8 @@ class Weekly(Plot):
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        day = datetime(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
+        tzinfo = dt.tzinfo if "tzinfo" in dir(dt) else None
+        day = datetime(dt.year, dt.month, dt.day, tzinfo=tzinfo)
         return day - relativedelta(days=day.weekday())
 
 
@@ -238,7 +240,8 @@ class Monthly(Plot):
         return Bounds(earliest=earliest_dt, latest=latest_dt)
 
     def _clamp(self, dt: datetime) -> datetime:
-        return datetime(dt.year, dt.month, 1, tzinfo=dt.tzinfo)
+        tzinfo = dt.tzinfo if "tzinfo" in dir(dt) else None
+        return datetime(dt.year, dt.month, 1, tzinfo=tzinfo)
 
 
 class Chart:
