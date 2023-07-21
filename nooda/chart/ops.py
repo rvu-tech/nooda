@@ -129,7 +129,9 @@ class Plot:
             if series.annotations is not None:
                 for point in data[series.label].items():
                     ax.annotate(
-                        y_formatter.format_data(point[1]),
+                        y_formatter.format_data(point[1])
+                        if y_formatter is not None
+                        else point[1],
                         point,
                         **series.annotations._asdict(),
                     )
@@ -277,6 +279,9 @@ class Chart:
         for pos, ax, plot in zip(range(len(self.plots)), axs, self.plots):
             plot._plot(ax, df, self.formatter)
 
+            if self.formatter is not None:
+                ax.yaxis.set_major_formatter(self.formatter)
+
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
@@ -285,7 +290,6 @@ class Chart:
                 plt.setp(ax.get_yticklines(), visible=False)
 
             ax.grid(visible=True, which="major", axis="y", alpha=0.3)
-            ax.yaxis.set_major_formatter(self.formatter)
             ax.tick_params(axis="both", which="major", labelsize=9)
 
             for label in ax.get_xticklabels():
