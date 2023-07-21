@@ -42,7 +42,11 @@ def _var_or_string(raw, ip):
     help="A var that contains slack mrkdwn to append if sending a file",
     default=None,
 )
-@argument("channel", type=str, help="the channel to send the message to")
+@argument(
+    "channel",
+    type=str,
+    help="the channel to send the message to. empty string will skip",
+)
 @argument("message", type=str, help="the var or string to send to slack")
 def _slack_line_magic(line):
     args = parse_argstring(_slack_line_magic, line)

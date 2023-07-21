@@ -36,6 +36,10 @@ def send(
         print("SLACK_TOKEN not set, skipping slack send", file=sys.stderr)
         return Response(channel, None, False)
 
+    if len(channel) == 0:
+        print("channel is empty, skipping slack send", file=sys.stderr)
+        return Response(channel, None, False)
+
     slack_client = WebClient(token=os.getenv("SLACK_TOKEN"))
 
     ts = None
