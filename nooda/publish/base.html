@@ -81,8 +81,7 @@
         }
 
         section {
-            margin-left: auto;
-            margin-right: auto;
+            margin: 2em auto;
         }
 
         section.bleed {
@@ -122,10 +121,101 @@
             margin: 3em 0;
         }
 
+        h2 {
+            font-size: 1rem;
+        }
+
+        h3 {
+            font-size: 0.9rem;
+        }
+
+        h4,
+        h5,
+        h6 {
+            font-size: 0.8rem;
+        }
+
         /*h2::before {
             content: "1";
             margin-right: 50px;
         }*/
+
+        a.header {
+            position: relative;
+            color: black;
+            text-decoration: none;
+        }
+
+        a.header::before {
+            content: '#';
+            position: absolute;
+            left: -25px;
+            color: #666;
+            font-size: 0.8rem;
+            line-height: 1.5rem;
+        }
+
+        a.header h1::before,
+        a.header h2::before,
+        a.header h3::before,
+        a.header h4::before,
+        a.header h5::before,
+        a.header h6::before {
+            content: attr(id) ' ';
+            display: inline;
+        }
+
+
+
+        table {
+            width: 100%;
+            table-layout: auto;
+            border-collapse: collapse;
+            border: 0;
+            font-size: 0.7rem;
+        }
+
+        thead {
+            border: 0;
+            border-top: 2px solid black;
+            border-bottom: 2px solid black;
+        }
+
+        /*thead tr:first-of-type th {
+            text-align: center !important;
+        }
+
+        thead tr th {
+            text-align: right;
+        }*/
+
+        tr,
+        td,
+        th {
+            border: 0;
+        }
+
+        th,
+        td {
+            padding: 5px;
+        }
+
+        tr th,
+        tr td {
+            text-align: right;
+        }
+
+        tbody tr>th:last-of-type {
+            border-right: 1px solid black;
+        }
+
+        section#toc ol {
+            list-style: none;
+        }
+
+        section#toc>ol {
+            padding: 0;
+        }
     </style>
 </head>
 
