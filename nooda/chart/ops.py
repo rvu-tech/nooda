@@ -3,6 +3,8 @@ import matplotlib.ticker
 import matplotlib.pyplot as plt
 import numpy as np
 
+import nooda.chart.fonts
+
 from calendar import monthrange
 from collections import namedtuple
 from datetime import datetime, date
