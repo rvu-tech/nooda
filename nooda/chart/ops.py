@@ -357,7 +357,7 @@ class Chart:
                 ),
                 Weekly(series=series, weeks=4),
             ]
-        elif days_in_index < 365:
+        elif days_in_index < 92:
             return [
                 Daily(
                     series=series
@@ -366,7 +366,7 @@ class Chart:
                 ),
                 Weekly(series=series, weeks=6),
             ]
-        elif days_in_index >= 365:
+        elif days_in_index >= 92:
             return [
                 Daily(
                     series=series
