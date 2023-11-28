@@ -245,6 +245,13 @@ class Monthly(Plot):
 
 
 LINE_STYLES = ["-", "--", "-.", ":"]
+ANNOTATION_STYLES = [
+    AnnotationStyle(),
+    None,
+    None,
+    None,
+]
+MARKER_SIZE = [3, 0, 0, 0]
 
 
 def offset_series(
@@ -312,12 +319,18 @@ class Chart:
                 label=col,
                 agg=np.sum,
                 style=SeriesStyle(
-                    color="black", linestyle=line_style, marker="o", markersize=0
+                    color="black",
+                    linestyle=line_style,
+                    marker="o",
+                    markersize=marker_size,
                 ),
+                annotations=annotation_style,
             )
-            for (col, line_style) in zip(
+            for (col, line_style, annotation_style, marker_size) in zip(
                 numeric_columns,
                 LINE_STYLES[: len(numeric_columns)],
+                ANNOTATION_STYLES[: len(numeric_columns)],
+                MARKER_SIZE[: len(numeric_columns)],
             )
         ]
 
@@ -326,26 +339,40 @@ class Chart:
         if days_in_index < 14:
             return [
                 Daily(
-                    series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
                     days=days_in_index,
                 )
             ]
         elif days_in_index < 31:
             return [
-                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
                 Weekly(series=series, weeks=4),
             ]
         elif days_in_index < 365:
             return [
-                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
                 Weekly(series=series, weeks=6),
             ]
         elif days_in_index >= 365:
             return [
-                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
                 Weekly(series=series, weeks=6),
                 Monthly(
-                    series=series + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    series=series
+                    + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
                     months=12,
                 ),
             ]
