@@ -300,11 +300,20 @@ class Chart:
             )
         ]
 
-        return [
-            Daily(series=series, days=7),
-            Weekly(series=series, weeks=6),
-            Monthly(series=series, months=12),
-        ]
+        days_in_index = (df.index.max() - df.index.min()).days
+
+        if days_in_index < 14:
+            return [Daily(series=series, days=days_in_index)]
+        elif days_in_index < 31:
+            return [Daily(series=series, days=7), Weekly(series=series, weeks=4)]
+        elif days_in_index < 365:
+            return [Daily(series=series, days=7), Weekly(series=series, weeks=6)]
+        elif days_in_index >= 365:
+            return [
+                Daily(series=series, days=7),
+                Weekly(series=series, weeks=6),
+                Monthly(series=series, months=12),
+            ]
 
     def plot(self, df):
         plots = self._plots(df)
