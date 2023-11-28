@@ -247,6 +247,27 @@ class Monthly(Plot):
 LINE_STYLES = ["-", "--", "-.", ":"]
 
 
+def offset_series(
+    series: list[Series], days: int, alpha: float, label_suffix: str = ""
+):
+    return [
+        Series(
+            columns=s.columns,
+            label=s.label + label_suffix,
+            agg=s.agg,
+            offset=relativedelta(days=days),
+            style=SeriesStyle(
+                color=s.style.color,
+                linestyle=s.style.linestyle,
+                marker=s.style.marker,
+                markersize=s.style.markersize,
+                alpha=alpha,
+            ),
+        )
+        for s in series
+    ]
+
+
 class Chart:
     def __init__(
         self,
@@ -303,16 +324,30 @@ class Chart:
         days_in_index = (df.index.max() - df.index.min()).days
 
         if days_in_index < 14:
-            return [Daily(series=series, days=days_in_index)]
+            return [
+                Daily(
+                    series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=days_in_index,
+                )
+            ]
         elif days_in_index < 31:
-            return [Daily(series=series, days=7), Weekly(series=series, weeks=4)]
+            return [
+                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
+                Weekly(series=series, weeks=4),
+            ]
         elif days_in_index < 365:
-            return [Daily(series=series, days=7), Weekly(series=series, weeks=6)]
+            return [
+                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
+                Weekly(series=series, weeks=6),
+            ]
         elif days_in_index >= 365:
             return [
-                Daily(series=series, days=7),
+                Daily(series=series + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"), days=7),
                 Weekly(series=series, weeks=6),
-                Monthly(series=series, months=12),
+                Monthly(
+                    series=series + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    months=12,
+                ),
             ]
 
     def plot(self, df):
