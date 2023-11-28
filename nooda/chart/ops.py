@@ -286,6 +286,7 @@ class Chart:
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
+        agg: Callable[[list[T]], T] = np.sum,
     ):
         if isinstance(formatter, str):
             formatter = StrMethodFormatter(formatter)
@@ -296,6 +297,7 @@ class Chart:
         self.height = height
         self.width_increment = width_increment
         self.y_limits = y_limits
+        self.agg = agg
 
     def _plots(self, df):
         if not isinstance(df.index, pd.DatetimeIndex):
@@ -319,7 +321,7 @@ class Chart:
             Series(
                 columns=col,
                 label=col,
-                agg=np.sum,
+                agg=self.agg,
                 style=SeriesStyle(
                     color="black",
                     linestyle=line_style,
