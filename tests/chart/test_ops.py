@@ -65,7 +65,7 @@ def test_chart():
     chart.plot(data()).savefig("tests/test_chart.png")
 
 
-def test_chart_no_plots():
+def test_chart_no_datetime():
     df = pd.DataFrame(
         data={
             "day": [1, 2, 3],
@@ -73,8 +73,10 @@ def test_chart_no_plots():
         }
     )
 
-    with pytest.raises(AssertionError):
-        ops.Chart(df)
+    with pytest.raises(Exception) as e_info:
+        ops.Chart().plot(df)
+
+    assert e_info.match(r"DatetimeIndex")
 
 
 def test_plot_needs_one_no_offset_series():

@@ -3,6 +3,8 @@ import matplotlib.ticker
 import matplotlib.pyplot as plt
 import numpy as np
 
+import nooda.chart.fonts
+
 from calendar import monthrange
 from collections import namedtuple
 from datetime import datetime, date
@@ -244,6 +246,37 @@ class Monthly(Plot):
         return datetime(dt.year, dt.month, 1, tzinfo=tzinfo)
 
 
+LINE_STYLES = ["-", "--", "-.", ":"]
+ANNOTATION_STYLES = [
+    AnnotationStyle(),
+    None,
+    None,
+    None,
+]
+MARKER_SIZE = [3, 0, 0, 0]
+
+
+def offset_series(
+    series: list[Series], days: int, alpha: float, label_suffix: str = ""
+):
+    return [
+        Series(
+            columns=s.columns,
+            label=s.label + label_suffix,
+            agg=s.agg,
+            offset=relativedelta(days=days),
+            style=SeriesStyle(
+                color=s.style.color,
+                linestyle=s.style.linestyle,
+                marker=s.style.marker,
+                markersize=s.style.markersize,
+                alpha=alpha,
+            ),
+        )
+        for s in series
+    ]
+
+
 class Chart:
     def __init__(
         self,
@@ -253,9 +286,8 @@ class Chart:
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
+        agg: Callable[[list[T]], T] = np.sum,
     ):
-        assert len(plots) > 0
-
         if isinstance(formatter, str):
             formatter = StrMethodFormatter(formatter)
 
@@ -265,27 +297,112 @@ class Chart:
         self.height = height
         self.width_increment = width_increment
         self.y_limits = y_limits
+        self.agg = agg
+
+    def _plots(self, df):
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise Exception("dataframe must have a DatetimeIndex")
+
+        if len(self.plots) > 0:
+            return self.plots
+
+        # find numeric columns in dataframe
+        numeric_columns = df.select_dtypes(include=np.number).columns
+
+        if len(numeric_columns) == 0:
+            raise Exception("dataframe must have numeric columns")
+
+        if len(numeric_columns) > len(LINE_STYLES):
+            raise Exception(
+                f"too many numeric columns ({len(numeric_columns)}) for line styles ({len(LINE_STYLES)})"
+            )
+
+        series = [
+            Series(
+                columns=col,
+                label=col,
+                agg=self.agg,
+                style=SeriesStyle(
+                    color="black",
+                    linestyle=line_style,
+                    marker="o",
+                    markersize=marker_size,
+                ),
+                annotations=annotation_style,
+            )
+            for (col, line_style, annotation_style, marker_size) in zip(
+                numeric_columns,
+                LINE_STYLES[: len(numeric_columns)],
+                ANNOTATION_STYLES[: len(numeric_columns)],
+                MARKER_SIZE[: len(numeric_columns)],
+            )
+        ]
+
+        days_in_index = (df.index.max() - df.index.min()).days
+
+        if days_in_index < 14:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=days_in_index,
+                )
+            ]
+        elif days_in_index < 31:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=4),
+            ]
+        elif days_in_index < 92:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=6),
+            ]
+        elif days_in_index >= 92:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=6),
+                Monthly(
+                    series=series
+                    + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    months=12,
+                ),
+            ]
 
     def plot(self, df):
+        plots = self._plots(df)
+
         fig, axs = plt.subplots(
             1,
-            len(self.plots),
+            len(plots),
             figsize=(
-                sum(plot.increments for plot in self.plots) * self.width_increment,
+                sum(plot.increments for plot in plots) * self.width_increment,
                 self.height,
             ),
-            gridspec_kw={"width_ratios": [plot.increments for plot in self.plots]},
+            gridspec_kw={"width_ratios": [plot.increments for plot in plots]},
             sharey=True,
         )
 
         # if there's only one plot, axs is a single axis, not an array
-        if len(self.plots) == 1:
+        if len(plots) == 1:
             axs = [axs]
 
         if self.title is not None:
             fig.suptitle(self.title)
 
-        for pos, ax, plot in zip(range(len(self.plots)), axs, self.plots):
+        for pos, ax, plot in zip(range(len(plots)), axs, plots):
             plot._plot(ax, df, self.formatter)
 
             if self.y_limits is not None:
@@ -315,7 +432,7 @@ class Chart:
         return fig
 
     def data(self, df):
-        return [plot.data(df) for plot in self.plots]
+        return [plot.data(df) for plot in self._plots(df)]
 
 
 def _add_legend(ax, labels):
