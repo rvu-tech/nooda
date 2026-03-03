@@ -1,31 +1,45 @@
-[tool.poetry]
+[project]
 name = "nooda"
 version = "0.1.0"
 description = ""
-authors = ["Tom Booth <tom.booth@rvu.co.uk>"]
+authors = [{ name = "Tom Booth", email = "tom.booth@rvu.co.uk" }]
+requires-python = ">=3.12"
 readme = "README.md"
-packages = [{include = "nooda"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "marko>=2.2.2",
+    "matplotlib>=3.10.8",
+    "nbformat>=5.10.4",
+    "pandas>=2.3.3",
+    "slack-sdk>=3.39.0",
+    "tabulate>=0.9.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9"
-pandas = "^2.0.3"
-matplotlib = "^3.7.2"
-slack-sdk = "^3.21.3"
-nbformat = "^5.9.1"
-marko = "^2.0.0"
-tabulate = "^0.9.0"
-beautifulsoup4 = "^4.12.2"
+[dependency-groups]
+dev = [
+    "db-dtypes>=1.5.0",
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "nbconvert>=7.16.6",
+    "pyarrow>=23.0.0",
+    "pytest>=9.0.2",
+]
 
+[tool.uv]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pandas = "^2.0.2"
-ipykernel = "^6.23.1"
-nbconvert = "^7.4.0"
-pyarrow = "^12.0.0"
-db-dtypes = "^1.1.1"
-ipywidgets = "^8.0.6"
+[tool.uv.build-backend]
+module-name = ["nooda"]
+module-root = ""
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.9.0,<0.10.0"]
+build-backend = "uv_build"
