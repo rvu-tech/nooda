@@ -97,7 +97,7 @@ def query_metrics(
     return _build_dataframe(results)
 
 
-def list_datasources(grafana_url, token, *):
+def list_datasources(grafana_url, token):
     """Return available datasources as a list of dicts (uid, type, name, etc.)."""
     resp = requests.get(
         f"{grafana_url}/api/datasources", headers=_headers(token)
