@@ -21,6 +21,8 @@ def _query_range(grafana_url, token, datasource_uid, expr, start, end, step):
         headers=_headers(token),
         params={"query": expr, "start": start, "end": end, "step": step},
     )
+    if resp.status_code == 400:
+        print(f"Grafana 400 Bad Request: {resp.text}")
     resp.raise_for_status()
     return resp.json()
 
