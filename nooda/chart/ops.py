@@ -1,19 +1,18 @@
-import pandas as pd
-import matplotlib.ticker
-import matplotlib.pyplot as plt
-import numpy as np
-
-import nooda.chart.fonts
-
 from calendar import monthrange
 from collections import namedtuple
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
-from pandas.core.groupby import DataFrameGroupBy
-from matplotlib.dates import num2date
-from matplotlib.ticker import Formatter, StrMethodFormatter, FuncFormatter
-from typing import Optional, Callable, TypeVar
+from datetime import date, datetime
+from typing import Callable, Optional, TypeVar
 
+import matplotlib.pyplot as plt
+import matplotlib.ticker
+import numpy as np
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+from matplotlib.dates import num2date
+from matplotlib.ticker import Formatter, FuncFormatter, StrMethodFormatter
+from pandas.core.groupby import DataFrameGroupBy
+
+import nooda.chart.fonts
 
 T = TypeVar("T")
 
@@ -30,6 +29,14 @@ AnnotationStyle = namedtuple(
 )
 
 Bounds = namedtuple("Bounds", ["earliest", "latest"])
+
+
+def time_window(bounds):
+    def fn(row):
+        dt = pd.to_datetime(row.index).to_pydatetime()
+        return np.logical_and(dt >= bounds.earliest, dt < bounds.latest)
+
+    return fn
 
 
 class Series:
@@ -53,13 +60,32 @@ class Series:
         self.style = style
         self.annotations = annotations
 
+    def data(
+        self,
+        df: pd.DataFrame,
+        bounds: Bounds,
+        clamp: Callable[[datetime], datetime],
+    ) -> pd.DataFrame:
+        series_df = df.copy()
 
-def time_window(bounds):
-    def fn(row):
-        dt = pd.to_datetime(row.index).to_pydatetime()
-        return np.logical_and(dt >= bounds.earliest, dt < bounds.latest)
+        if self.offset is not None:
+            series_df.index = (
+                pd.to_datetime(series_df.index).to_pydatetime() + self.offset
+            )
 
-    return fn
+        data = (
+            series_df.loc[time_window(bounds)]
+            .groupby(clamp)[self.columns]
+            .apply(self.agg)
+            .dropna()
+        )
+
+        if isinstance(data, pd.DataFrame):
+            data.columns = [self.label]
+        elif isinstance(data, pd.Series):
+            data.name = self.label
+
+        return data
 
 
 class Plot:
@@ -79,36 +105,9 @@ class Plot:
         bounds = self._bounds(raw)
 
         return pd.concat(
-            [self._series_data(raw, bounds, series) for series in self.series],
+            [series.data(raw, bounds, self._clamp) for series in self.series],
             axis=1,
         )
-
-    def _series_data(
-        self,
-        df: pd.DataFrame,
-        bounds: Bounds,
-        series: Series,
-    ) -> pd.DataFrame:
-        series_df = df.copy()
-
-        if series.offset is not None:
-            series_df.index = (
-                pd.to_datetime(series_df.index).to_pydatetime() + series.offset
-            )
-
-        data = (
-            series_df.loc[time_window(bounds)]
-            .groupby(self._clamp)[series.columns]
-            .apply(series.agg)
-            .dropna()
-        )
-
-        if isinstance(data, pd.DataFrame):
-            data.columns = [series.label]
-        elif isinstance(data, pd.Series):
-            data.name = series.label
-
-        return data
 
     def _plot(
         self,
@@ -282,7 +281,7 @@ class Chart:
         self,
         title: Optional[str] = None,
         formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
-        plots: list[Plot] = [],
+        plots: Optional[list[Plot]] = None,
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
@@ -293,7 +292,7 @@ class Chart:
 
         self.title = title
         self.formatter = formatter
-        self.plots = plots
+        self.plots = plots if plots is not None else []
         self.height = height
         self.width_increment = width_increment
         self.y_limits = y_limits
