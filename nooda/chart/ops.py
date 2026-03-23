@@ -282,7 +282,7 @@ class Chart:
         self,
         title: Optional[str] = None,
         formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
-        plots: list[type[Plot]] = [],
+        plots: list[Plot] = [],
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,

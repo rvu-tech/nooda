@@ -52,13 +52,18 @@ def reliability(
         style=SeriesStyle(markersize=4),
         annotations=AnnotationStyle(),
     )
-    success_yoy_series = Series(
-        success_columns,
-        label="Success % (YoY)",
-        agg=success_ratio,
-        offset=relativedelta(months=12),
-        style=SeriesStyle(markersize=4, alpha=0.4),
-    )
+
+    days_in_index = (df.index.max() - df.index.min()).days
+    monthly_series_to_show = []
+    if days_in_index > 365:
+        success_yoy_series = Series(
+            success_columns,
+            label="Success % (YoY)",
+            agg=success_ratio,
+            offset=relativedelta(months=12),
+            style=SeriesStyle(markersize=4, alpha=0.4),
+        )
+        monthly_series_to_show = [success_yoy_series]
 
     series_to_show = [success_series]
 
@@ -77,7 +82,7 @@ def reliability(
         plots=[
             Daily(series=series_to_show, days=7),
             Weekly(series=series_to_show, weeks=6),
-            Monthly(series=series_to_show + [success_yoy_series], months=12),
+            Monthly(series=series_to_show + monthly_series_to_show, months=12),
         ],
     )
 
