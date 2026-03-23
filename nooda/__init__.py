@@ -1,4 +1,4 @@
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Literal, Optional, TypeVar
 
 import numpy as np
 from dateutil.relativedelta import relativedelta
@@ -34,37 +34,39 @@ def plot(
     return Chart(title=title, formatter=formatter, y_limits=y_limits, agg=agg).plot(df)
 
 
-def reliability(
-    success_column,
-    total_column,
+def ratio_plot(
+    numerator_column,
+    denominator_column,
+    label: str = "%",
     title: Optional[str] = None,
+    formatter: Formatter | str = StrMethodFormatter("{x:.3%}"),
     target_column: Optional[str] = None,
     show_yoy: bool = True,
 ):
 
-    success_columns = [success_column, total_column]
-    success_ratio = ratio(*success_columns)
+    ratio_columns = [numerator_column, denominator_column]
+    ratio_agg = ratio(*ratio_columns)
 
-    success_series = Series(
-        success_columns,
-        label="Success %",
-        agg=success_ratio,
+    ratio_series = Series(
+        ratio_columns,
+        label=label,
+        agg=ratio_agg,
         style=SeriesStyle(markersize=4),
         annotations=AnnotationStyle(),
     )
 
     monthly_series_to_show = []
     if show_yoy:
-        success_yoy_series = Series(
-            success_columns,
-            label="Success % (YoY)",
-            agg=success_ratio,
+        ratio_yoy_series = Series(
+            ratio_columns,
+            label=f"{label} (YoY)",
+            agg=ratio_agg,
             offset=relativedelta(months=12),
             style=SeriesStyle(markersize=4, alpha=0.4),
         )
-        monthly_series_to_show = [success_yoy_series]
+        monthly_series_to_show = [ratio_yoy_series]
 
-    series_to_show = [success_series]
+    series_to_show = [ratio_series]
 
     if target_column is not None:
         target_series = Series(
@@ -77,7 +79,7 @@ def reliability(
 
     return Chart(
         title=title,
-        formatter="{x:.3%}",
+        formatter=formatter,
         plots=[
             Daily(series=series_to_show, days=7),
             Weekly(series=series_to_show, weeks=6),

@@ -1,10 +1,11 @@
-import pytest
-import pandas as pd
-import numpy as np
-
-from nooda.chart import ops, agg, fonts
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import pytest
 from dateutil.relativedelta import relativedelta
+
+from nooda.chart import agg, fonts, ops
 
 
 def data():
@@ -209,11 +210,11 @@ def test_nooda_plot_validates_datetime_index():
         nooda.plot(df)
 
 
-def test_nooda_reliability_validates_datetime_index():
+def test_nooda_ratio_plot_validates_datetime_index():
     import nooda
 
     df = pd.DataFrame({"s": [1, 2], "t": [3, 4]})
-    chart = nooda.reliability("s", "t")
+    chart = nooda.ratio_plot("s", "t")
     with pytest.raises(ValueError, match="DatetimeIndex"):
         chart.plot(df)
 
