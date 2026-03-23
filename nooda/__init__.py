@@ -72,7 +72,7 @@ def ratio_plot(
         target_series = Series(
             target_column,
             label="Target",
-            agg=max,
+            agg=np.max,
             style=SeriesStyle(color="green"),
         )
         series_to_show += [target_series]
