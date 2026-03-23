@@ -74,13 +74,21 @@ def send(
 
         file_id = upload_response["files"][0]["id"]
 
-        while ts is None:
-            # the message thread associated with the file upload isn't reliaibly in
-            # the response. yay eventual consistency!
+        # the message thread associated with the file upload isn't reliably in
+        # the response. yay eventual consistency!
+        max_retries = 15
+        for _ in range(max_retries):
             time.sleep(2)
-
             file_response = slack_client.files_info(file=file_id)
             ts = get_file_thread(file_response["file"], channel)
+            if ts is not None:
+                break
+
+        if ts is None:
+            print(
+                "Warning: could not resolve thread_ts for file upload",
+                file=sys.stderr,
+            )
     elif "to_markdown" in dir(val):
         message = f"""```{val.to_markdown()}```
         """
