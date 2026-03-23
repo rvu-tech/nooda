@@ -73,10 +73,8 @@ def test_chart_no_datetime():
         }
     )
 
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(ValueError, match="DatetimeIndex"):
         ops.Chart().plot(df)
-
-    assert e_info.match(r"DatetimeIndex")
 
 
 def test_plot_needs_one_no_offset_series():
