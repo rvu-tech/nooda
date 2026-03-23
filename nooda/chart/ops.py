@@ -10,6 +10,8 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 from matplotlib.dates import num2date
 from matplotlib.ticker import Formatter, FuncFormatter, StrMethodFormatter
+
+from nooda.chart.formatter import seconds_to_day_hours
 from pandas.core.groupby import DataFrameGroupBy
 
 import nooda.chart.fonts
@@ -280,19 +282,25 @@ def offset_series(
 
 
 class Chart:
+    _DEFAULT_FORMATTER = StrMethodFormatter("{x:,.0f}")
+
     def __init__(
         self,
         title: Optional[str] = None,
-        formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
+        formatter: Formatter | str = None,
         plots: Optional[list[Plot]] = None,
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
         agg: Callable[[list[T]], T] = np.sum,
     ):
+        formatter_is_default = formatter is None
+        if formatter_is_default:
+            formatter = StrMethodFormatter("{x:,.0f}")
         if isinstance(formatter, str):
             formatter = StrMethodFormatter(formatter)
 
+        self._formatter_is_default = formatter_is_default
         self.title = title
         self.formatter = formatter
         self.plots = plots if plots is not None else []
@@ -300,6 +308,20 @@ class Chart:
         self.width_increment = width_increment
         self.y_limits = y_limits
         self.agg = agg
+
+    def _prepare_df(self, df):
+        timedelta_cols = df.select_dtypes(include="timedelta64").columns
+        if len(timedelta_cols) == 0:
+            return df
+
+        df = df.copy()
+        for col in timedelta_cols:
+            df[col] = df[col].dt.total_seconds()
+
+        if self._formatter_is_default:
+            self.formatter = seconds_to_day_hours
+
+        return df
 
     def _plots(self, df):
         if not isinstance(df.index, pd.DatetimeIndex):
@@ -402,6 +424,7 @@ class Chart:
         return plots
 
     def plot(self, df):
+        df = self._prepare_df(df)
         plots = self._validated_plots(df)
 
         fig, axs = plt.subplots(
@@ -452,6 +475,7 @@ class Chart:
         return fig
 
     def data(self, df):
+        df = self._prepare_df(df)
         return [plot.data(df) for plot in self._validated_plots(df)]
 
 

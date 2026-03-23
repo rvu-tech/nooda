@@ -233,3 +233,70 @@ def test_chart_data_validates_column_existence():
     chart = ops.Chart(plots=[ops.Daily(series=[series])])
     with pytest.raises(ValueError, match="missing"):
         chart.data(df)
+
+
+def timedelta_data():
+    from datetime import timedelta
+
+    dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+    df = pd.DataFrame(
+        {
+            "response_time": [timedelta(seconds=i * 100) for i in range(30)],
+        },
+        index=dates,
+    )
+    return df
+
+
+def test_chart_auto_discovers_timedelta_columns():
+    df = timedelta_data()
+    chart = ops.Chart()
+    plots = chart._plots(df)
+    assert len(plots) > 0
+    # Should have series for the timedelta column
+    series_labels = [s.label for p in plots for s in p.series]
+    assert "response_time" in series_labels
+
+
+def test_chart_converts_timedelta_to_seconds():
+    df = timedelta_data()
+    chart = ops.Chart()
+    plot_data = chart.data(df)
+    # The data should be numeric (total_seconds), not timedelta
+    for d in plot_data:
+        for col in d.columns:
+            assert pd.api.types.is_numeric_dtype(d[col].dropna()), (
+                f"Column {col} should be numeric after timedelta conversion"
+            )
+
+
+def test_chart_uses_timedelta_formatter_for_timedelta_columns():
+    from nooda.chart.formatter import seconds_to_day_hours
+
+    df = timedelta_data()
+    chart = ops.Chart()
+    chart.data(df)
+    assert chart.formatter is seconds_to_day_hours
+
+
+def test_nooda_plot_with_timedelta():
+    import nooda
+    from datetime import timedelta
+
+    dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+    df = pd.DataFrame(
+        {"response_time": [timedelta(seconds=i * 100) for i in range(30)]},
+        index=dates,
+    )
+    fig = nooda.plot(df)
+    assert fig is not None
+
+
+def test_chart_preserves_explicit_formatter_with_timedelta():
+    from matplotlib.ticker import StrMethodFormatter
+
+    df = timedelta_data()
+    fmt = StrMethodFormatter("{x:.0f}s")
+    chart = ops.Chart(formatter=fmt)
+    chart.data(df)
+    assert chart.formatter is fmt

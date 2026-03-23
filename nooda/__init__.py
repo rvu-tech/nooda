@@ -27,7 +27,7 @@ def plot(
     df,
     *,
     title: Optional[str] = None,
-    formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
+    formatter: Formatter | str = None,
     y_limits: Optional[tuple[float, float]] = None,
     agg: Callable[[list[T]], T] = np.sum,
 ):
