@@ -199,3 +199,36 @@ def test_chart_validates_column_existence():
     chart = ops.Chart(plots=[ops.Daily(series=[series])])
     with pytest.raises(ValueError, match="nonexistent"):
         chart.plot(df)
+
+
+def test_nooda_plot_validates_datetime_index():
+    import nooda
+
+    df = pd.DataFrame({"x": [1, 2], "y": [3, 4]})
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        nooda.plot(df)
+
+
+def test_nooda_reliability_validates_datetime_index():
+    import nooda
+
+    df = pd.DataFrame({"s": [1, 2], "t": [3, 4]})
+    chart = nooda.reliability("s", "t")
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        chart.plot(df)
+
+
+def test_chart_data_validates_datetime_index():
+    df = pd.DataFrame({"day": [1, 2, 3], "values": [4, 5, 6]})
+    chart = ops.Chart()
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        chart.data(df)
+
+
+def test_chart_data_validates_column_existence():
+    dates = pd.date_range("2023-01-01", periods=30)
+    df = pd.DataFrame({"values": range(30)}, index=dates)
+    series = ops.Series("missing", label="V", agg=sum)
+    chart = ops.Chart(plots=[ops.Daily(series=[series])])
+    with pytest.raises(ValueError, match="missing"):
+        chart.data(df)
