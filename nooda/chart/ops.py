@@ -95,7 +95,10 @@ class Plot:
         increments: int,
         range_columns: Optional[list[str]] = None,
     ):
-        assert len([s for s in series if s.offset is None]) > 0
+        if not any(s.offset is None for s in series):
+            raise ValueError(
+                "At least one series must have no time offset (offset=None)"
+            )
 
         self.series = series
         self.increments = increments
