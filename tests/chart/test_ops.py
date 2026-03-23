@@ -165,8 +165,8 @@ def test_monthly_series_df():
     )
 
     df = data()
-    series_df = monthly._series_data(df, monthly._bounds(df), series)
-    offset_df = monthly._series_data(df, monthly._bounds(df), offset_series)
+    series_df = series.data(df, monthly._bounds(df), monthly._clamp)
+    offset_df = offset_series.data(df, monthly._bounds(df), monthly._clamp)
 
     assert series_df.index.max() == offset_df.index.max()
 
