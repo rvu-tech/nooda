@@ -190,3 +190,12 @@ def test_chart_instances_have_independent_plots():
     c2 = ops.Chart()
     c1.plots.append("something")
     assert len(c2.plots) == 0
+
+
+def test_chart_validates_column_existence():
+    dates = pd.date_range("2023-01-01", periods=30)
+    df = pd.DataFrame({"values": range(30)}, index=dates)
+    series = ops.Series("nonexistent", label="V", agg=sum)
+    chart = ops.Chart(plots=[ops.Daily(series=[series])])
+    with pytest.raises(ValueError, match="nonexistent"):
+        chart.plot(df)
