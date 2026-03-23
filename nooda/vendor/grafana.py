@@ -27,7 +27,7 @@ def _query_range(grafana_url, token, datasource_uid, expr, start, end, step):
     return resp.json()
 
 
-def _build_dataframe(query_results):
+def _build_dataframe(query_results, truncate=None):
     merged = None
 
     for name, response in query_results:
@@ -48,6 +48,8 @@ def _build_dataframe(query_results):
             timestamps = [
                 datetime.fromtimestamp(v[0], tz=timezone.utc) for v in values
             ]
+            if truncate:
+                timestamps = [ts.floor(truncate) for ts in pd.to_datetime(timestamps)]
             floats = [float(v[1]) for v in values]
 
             df = pd.DataFrame({"timestamp": timestamps, col: floats})
@@ -73,6 +75,7 @@ def query_metrics(
     time_from=None,
     time_to=None,
     step="5m",
+    truncate=None,
 ):
     """Run PromQL queries via Grafana Cloud and return a DataFrame.
 
@@ -84,6 +87,7 @@ def query_metrics(
         time_from: ISO 8601 start time, or None for 24h ago.
         time_to: ISO 8601 end time, or None for now.
         step: Query resolution step (e.g. "5m", "1h").
+        truncate: Pandas frequency string to floor timestamps (e.g. "1D", "1h").
     """
     now = datetime.now(timezone.utc)
     start = time_from or (now - timedelta(hours=24)).isoformat()
@@ -96,7 +100,7 @@ def query_metrics(
         )
         results.append((q["name"], resp))
 
-    return _build_dataframe(results)
+    return _build_dataframe(results, truncate=truncate)
 
 
 def list_datasources(grafana_url, token):
