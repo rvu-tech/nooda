@@ -386,8 +386,23 @@ class Chart:
                 ),
             ]
 
-    def plot(self, df):
+    def _validated_plots(self, df):
         plots = self._plots(df)
+
+        df_columns = set(df.columns)
+        for plot in plots:
+            for series in plot.series:
+                missing = [c for c in series.columns if c not in df_columns]
+                if missing:
+                    raise ValueError(
+                        f"Column(s) {missing} not found in DataFrame. "
+                        f"Available columns: {sorted(df_columns)}"
+                    )
+
+        return plots
+
+    def plot(self, df):
+        plots = self._validated_plots(df)
 
         fig, axs = plt.subplots(
             1,
@@ -437,7 +452,7 @@ class Chart:
         return fig
 
     def data(self, df):
-        return [plot.data(df) for plot in self._plots(df)]
+        return [plot.data(df) for plot in self._validated_plots(df)]
 
 
 def _add_legend(ax, labels):
