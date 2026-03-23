@@ -185,3 +185,10 @@ def test_split_month_by_day():
     assert split_df["cost"].sum() == 30.0
     assert split_df["day"].unique()[0] == pd.to_datetime("2023-06-01")
     assert split_df["day"].unique()[29] == pd.to_datetime("2023-06-30")
+
+
+def test_chart_instances_have_independent_plots():
+    c1 = ops.Chart()
+    c2 = ops.Chart()
+    c1.plots.append("something")
+    assert len(c2.plots) == 0
