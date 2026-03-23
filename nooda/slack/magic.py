@@ -1,7 +1,6 @@
 import IPython
 import io
 import json
-import nooda.publish
 import os
 import sys
 
