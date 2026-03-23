@@ -80,7 +80,7 @@ def test_chart_no_datetime():
 
 
 def test_plot_needs_one_no_offset_series():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="offset"):
         ops.Plot(
             series=[
                 ops.Series(
