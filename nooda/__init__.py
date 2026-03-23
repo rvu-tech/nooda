@@ -35,11 +35,11 @@ def plot(
 
 
 def reliability(
-    df,
     success_column,
     total_column,
     title: Optional[str] = None,
     target_column: Optional[str] = None,
+    show_yoy: bool = True,
 ):
 
     success_columns = [success_column, total_column]
@@ -53,9 +53,8 @@ def reliability(
         annotations=AnnotationStyle(),
     )
 
-    days_in_index = (df.index.max() - df.index.min()).days
     monthly_series_to_show = []
-    if days_in_index > 365:
+    if show_yoy:
         success_yoy_series = Series(
             success_columns,
             label="Success % (YoY)",
@@ -76,7 +75,7 @@ def reliability(
         )
         series_to_show += [target_series]
 
-    chart = Chart(
+    return Chart(
         title=title,
         formatter="{x:.3%}",
         plots=[
@@ -85,5 +84,3 @@ def reliability(
             Monthly(series=series_to_show + monthly_series_to_show, months=12),
         ],
     )
-
-    return chart.plot(df)
