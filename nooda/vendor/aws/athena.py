@@ -178,7 +178,8 @@ def _sql_value_for(v):
         except ValueError:
             pass
 
-        return f"'{v}'"
+        escaped = v.replace("'", "''")
+        return f"'{escaped}'"
     elif isinstance(v, int):
         return f"{v}"
     else:
