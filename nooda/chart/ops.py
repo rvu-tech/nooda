@@ -303,7 +303,10 @@ class Chart:
 
     def _plots(self, df):
         if not isinstance(df.index, pd.DatetimeIndex):
-            raise Exception("dataframe must have a DatetimeIndex")
+            raise ValueError(
+                "DataFrame must have a DatetimeIndex. "
+                "Call df.set_index('date_column') first."
+            )
 
         if len(self.plots) > 0:
             return self.plots
