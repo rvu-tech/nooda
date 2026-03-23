@@ -7,6 +7,8 @@ HAS_BEEN_INSTALLED = False
 
 
 def jakarta_sans():
+    global HAS_BEEN_INSTALLED
+
     if HAS_BEEN_INSTALLED:
         return
 
@@ -23,6 +25,8 @@ def jakarta_sans():
             "font.family": "Plus Jakarta Sans",
         }
     )
+
+    HAS_BEEN_INSTALLED = True
 
 
 jakarta_sans()
