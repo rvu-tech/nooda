@@ -284,6 +284,12 @@ def offset_series(
 class Chart:
     _DEFAULT_FORMATTER = StrMethodFormatter("{x:,.0f}")
 
+    VIEWS_MAP = {
+        "daily": Daily,
+        "weekly": Weekly,
+        "monthly": Monthly,
+    }
+
     def __init__(
         self,
         title: Optional[str] = None,
@@ -293,6 +299,7 @@ class Chart:
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
         agg: Callable[[list[T]], T] = np.sum,
+        views: Optional[list[str]] = None,
     ):
         formatter_is_default = formatter is None
         if formatter_is_default:
@@ -308,6 +315,7 @@ class Chart:
         self.width_increment = width_increment
         self.y_limits = y_limits
         self.agg = agg
+        self.views = views
 
     def _prepare_df(self, df):
         timedelta_cols = df.select_dtypes(include="timedelta64").columns
@@ -365,6 +373,9 @@ class Chart:
             )
         ]
 
+        if self.views is not None:
+            return self._plots_for_views(series)
+
         days_in_index = (df.index.max() - df.index.min()).days
 
         if days_in_index < 14:
@@ -407,6 +418,32 @@ class Chart:
                     months=12,
                 ),
             ]
+
+    def _plots_for_views(self, series):
+        plots = []
+        for view in self.views:
+            if view not in self.VIEWS_MAP:
+                raise ValueError(
+                    f"Unknown view '{view}'. "
+                    f"Valid views: {sorted(self.VIEWS_MAP.keys())}"
+                )
+
+            if view == "daily":
+                plots.append(Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ))
+            elif view == "weekly":
+                plots.append(Weekly(series=series, weeks=6))
+            elif view == "monthly":
+                plots.append(Monthly(
+                    series=series
+                    + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    months=12,
+                ))
+
+        return plots
 
     def _validated_plots(self, df):
         plots = self._plots(df)

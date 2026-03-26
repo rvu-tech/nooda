@@ -32,3 +32,19 @@ data["value"] = np.random.randint(10000, 100000, data.shape[0])
 
 nooda.Chart().plot(data.set_index("day"))
 ```
+
+### Selecting views
+
+By default, nooda auto-selects which time views (daily, weekly, monthly) to show
+based on the date range of your data. You can override this with the `views` parameter:
+
+```python
+# Show only daily and monthly
+nooda.plot(df, views=["daily", "monthly"])
+
+# Works with ratio_plot too
+chart = nooda.ratio_plot("num_valid", "total_num", views=["weekly"])
+chart.plot(df)
+```
+
+Valid views: `"daily"`, `"weekly"`, `"monthly"`.

@@ -30,8 +30,18 @@ def plot(
     formatter: Formatter | str = None,
     y_limits: Optional[tuple[float, float]] = None,
     agg: Callable[[list[T]], T] = np.sum,
+    views: Optional[list[str]] = None,
 ):
-    return Chart(title=title, formatter=formatter, y_limits=y_limits, agg=agg).plot(df)
+    return Chart(title=title, formatter=formatter, y_limits=y_limits, agg=agg, views=views).plot(df)
+
+
+VIEWS_MAP = {
+    "daily": lambda series, **_: Daily(series=series, days=7),
+    "weekly": lambda series, **_: Weekly(series=series, weeks=6),
+    "monthly": lambda series, monthly_series=None, **_: Monthly(
+        series=series + (monthly_series or []), months=12
+    ),
+}
 
 
 def ratio_plot(
@@ -42,6 +52,7 @@ def ratio_plot(
     formatter: Formatter | str = StrMethodFormatter("{x:.3%}"),
     target_column: Optional[str] = None,
     show_yoy: bool = True,
+    views: Optional[list[str]] = None,
 ):
 
     ratio_columns = [numerator_column, denominator_column]
@@ -77,12 +88,22 @@ def ratio_plot(
         )
         series_to_show += [target_series]
 
+    selected_views = views if views is not None else ["daily", "weekly", "monthly"]
+
+    plots = []
+    for view in selected_views:
+        if view not in VIEWS_MAP:
+            raise ValueError(
+                f"Unknown view '{view}'. Valid views: {sorted(VIEWS_MAP.keys())}"
+            )
+        plots.append(
+            VIEWS_MAP[view](
+                series=series_to_show, monthly_series=monthly_series_to_show
+            )
+        )
+
     return Chart(
         title=title,
         formatter=formatter,
-        plots=[
-            Daily(series=series_to_show, days=7),
-            Weekly(series=series_to_show, weeks=6),
-            Monthly(series=series_to_show + monthly_series_to_show, months=12),
-        ],
+        plots=plots,
     )

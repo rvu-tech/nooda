@@ -300,3 +300,68 @@ def test_chart_preserves_explicit_formatter_with_timedelta():
     chart = ops.Chart(formatter=fmt)
     chart.data(df)
     assert chart.formatter is fmt
+
+
+def test_chart_views_selects_daily_only():
+    df = data()
+    chart = ops.Chart(views=["daily"])
+    plots = chart._plots(df)
+    assert len(plots) == 1
+    assert isinstance(plots[0], ops.Daily)
+
+
+def test_chart_views_selects_weekly_and_monthly():
+    df = data()
+    chart = ops.Chart(views=["weekly", "monthly"])
+    plots = chart._plots(df)
+    assert len(plots) == 2
+    assert isinstance(plots[0], ops.Weekly)
+    assert isinstance(plots[1], ops.Monthly)
+
+
+def test_chart_views_invalid_value_raises():
+    df = data()
+    chart = ops.Chart(views=["hourly"])
+    with pytest.raises(ValueError, match="hourly"):
+        chart._plots(df)
+
+
+def test_nooda_plot_with_views():
+    import nooda
+
+    df = data()
+    fig = nooda.plot(df, views=["daily", "monthly"])
+    axes = fig.get_axes()
+    assert len(axes) == 2
+
+
+def test_nooda_ratio_plot_with_views():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["daily"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Daily)
+
+
+def test_nooda_ratio_plot_with_views_monthly_includes_yoy():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["monthly"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Monthly)
+    # Monthly should include the YoY series
+    labels = [s.label for s in chart.plots[0].series]
+    assert any("YoY" in l for l in labels)
+
+
+def test_nooda_ratio_plot_with_views_no_yoy():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot(
+        "num_valid", "total_num", views=["monthly"], show_yoy=False
+    )
+    labels = [s.label for s in chart.plots[0].series]
+    assert not any("YoY" in l for l in labels)
