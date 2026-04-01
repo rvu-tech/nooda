@@ -92,6 +92,20 @@ chart.plot(df)
 
 Valid views: `"daily"`, `"weekly"`, `"monthly"`.
 
+### Controlling comparison series
+
+`ratio_plot` shows Week-over-Week (WoW) and Year-over-Year (YoY) comparison series by default on daily and monthly views respectively. You can disable either:
+
+```python
+# Hide WoW on daily views
+chart = nooda.ratio_plot("num_valid", "total_num", show_wow=False)
+chart.plot(df)
+
+# Hide YoY on monthly views
+chart = nooda.ratio_plot("num_valid", "total_num", show_yoy=False)
+chart.plot(df)
+```
+
 ### Hiding the legend
 
 The legend is shown by default. To hide it, pass `show_legend=False`:

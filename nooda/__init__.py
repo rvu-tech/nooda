@@ -48,7 +48,9 @@ def plot(
 
 
 VIEWS_MAP = {
-    "daily": lambda series, **_: Daily(series=series, days=7),
+    "daily": lambda series, daily_series=None, **_: Daily(
+        series=series + (daily_series or []), days=7
+    ),
     "weekly": lambda series, **_: Weekly(series=series, weeks=6),
     "monthly": lambda series, monthly_series=None, **_: Monthly(
         series=series + (monthly_series or []), months=12
@@ -64,6 +66,7 @@ def ratio_plot(
     formatter: Formatter | str = StrMethodFormatter("{x:.3%}"),
     target_column: Optional[str] = None,
     show_yoy: bool = True,
+    show_wow: bool = True,
     views: Optional[list[str]] = None,
     height: int = 5,
     width_increment: float = 0.7,
@@ -80,6 +83,17 @@ def ratio_plot(
         style=SeriesStyle(markersize=4),
         annotations=AnnotationStyle(),
     )
+
+    daily_series_to_show = []
+    if show_wow:
+        ratio_wow_series = Series(
+            ratio_columns,
+            label=f"{label} (WoW)",
+            agg=ratio_agg,
+            offset=relativedelta(days=7),
+            style=SeriesStyle(markersize=4, alpha=0.4),
+        )
+        daily_series_to_show = [ratio_wow_series]
 
     monthly_series_to_show = []
     if show_yoy:
@@ -113,7 +127,9 @@ def ratio_plot(
             )
         plots.append(
             VIEWS_MAP[view](
-                series=series_to_show, monthly_series=monthly_series_to_show
+                series=series_to_show,
+                daily_series=daily_series_to_show,
+                monthly_series=monthly_series_to_show,
             )
         )
 

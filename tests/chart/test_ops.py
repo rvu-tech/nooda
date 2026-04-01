@@ -367,6 +367,26 @@ def test_nooda_ratio_plot_with_views_no_yoy():
     assert not any("YoY" in l for l in labels)
 
 
+def test_nooda_ratio_plot_with_views_daily_includes_wow():
+    import nooda
+
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["daily"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Daily)
+    labels = [s.label for s in chart.plots[0].series]
+    assert any("WoW" in l for l in labels)
+
+
+def test_nooda_ratio_plot_with_views_no_wow():
+    import nooda
+
+    chart = nooda.ratio_plot(
+        "num_valid", "total_num", views=["daily"], show_wow=False
+    )
+    labels = [s.label for s in chart.plots[0].series]
+    assert not any("WoW" in l for l in labels)
+
+
 def test_chart_shows_legend_by_default():
     df = data()
     chart = ops.Chart()
