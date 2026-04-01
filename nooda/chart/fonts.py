@@ -3,8 +3,15 @@ import os
 
 from matplotlib import font_manager
 
+HAS_BEEN_INSTALLED = False
+
 
 def jakarta_sans():
+    global HAS_BEEN_INSTALLED
+
+    if HAS_BEEN_INSTALLED:
+        return
+
     font_dir = [
         os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "fonts", "Plus_Jakarta_Sans"
@@ -18,3 +25,8 @@ def jakarta_sans():
             "font.family": "Plus Jakarta Sans",
         }
     )
+
+    HAS_BEEN_INSTALLED = True
+
+
+jakarta_sans()

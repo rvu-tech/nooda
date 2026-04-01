@@ -1,10 +1,11 @@
-import pytest
-import pandas as pd
-import numpy as np
-
-from nooda.chart import ops, agg, fonts
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import pytest
 from dateutil.relativedelta import relativedelta
+
+from nooda.chart import agg, fonts, ops
 
 
 def data():
@@ -65,7 +66,7 @@ def test_chart():
     chart.plot(data()).savefig("tests/test_chart.png")
 
 
-def test_chart_no_plots():
+def test_chart_no_datetime():
     df = pd.DataFrame(
         data={
             "day": [1, 2, 3],
@@ -73,12 +74,12 @@ def test_chart_no_plots():
         }
     )
 
-    with pytest.raises(AssertionError):
-        ops.Chart(df)
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        ops.Chart().plot(df)
 
 
 def test_plot_needs_one_no_offset_series():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="offset"):
         ops.Plot(
             series=[
                 ops.Series(
@@ -163,8 +164,8 @@ def test_monthly_series_df():
     )
 
     df = data()
-    series_df = monthly._series_data(df, monthly._bounds(df), series)
-    offset_df = monthly._series_data(df, monthly._bounds(df), offset_series)
+    series_df = series.data(df, monthly._bounds(df), monthly._clamp)
+    offset_df = offset_series.data(df, monthly._bounds(df), monthly._clamp)
 
     assert series_df.index.max() == offset_df.index.max()
 
@@ -183,3 +184,243 @@ def test_split_month_by_day():
     assert split_df["cost"].sum() == 30.0
     assert split_df["day"].unique()[0] == pd.to_datetime("2023-06-01")
     assert split_df["day"].unique()[29] == pd.to_datetime("2023-06-30")
+
+
+def test_chart_instances_have_independent_plots():
+    c1 = ops.Chart()
+    c2 = ops.Chart()
+    c1.plots.append("something")
+    assert len(c2.plots) == 0
+
+
+def test_chart_validates_column_existence():
+    dates = pd.date_range("2023-01-01", periods=30)
+    df = pd.DataFrame({"values": range(30)}, index=dates)
+    series = ops.Series("nonexistent", label="V", agg=sum)
+    chart = ops.Chart(plots=[ops.Daily(series=[series])])
+    with pytest.raises(ValueError, match="nonexistent"):
+        chart.plot(df)
+
+
+def test_nooda_plot_validates_datetime_index():
+    import nooda
+
+    df = pd.DataFrame({"x": [1, 2], "y": [3, 4]})
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        nooda.plot(df)
+
+
+def test_nooda_ratio_plot_validates_datetime_index():
+    import nooda
+
+    df = pd.DataFrame({"s": [1, 2], "t": [3, 4]})
+    chart = nooda.ratio_plot("s", "t")
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        chart.plot(df)
+
+
+def test_chart_data_validates_datetime_index():
+    df = pd.DataFrame({"day": [1, 2, 3], "values": [4, 5, 6]})
+    chart = ops.Chart()
+    with pytest.raises(ValueError, match="DatetimeIndex"):
+        chart.data(df)
+
+
+def test_chart_data_validates_column_existence():
+    dates = pd.date_range("2023-01-01", periods=30)
+    df = pd.DataFrame({"values": range(30)}, index=dates)
+    series = ops.Series("missing", label="V", agg=sum)
+    chart = ops.Chart(plots=[ops.Daily(series=[series])])
+    with pytest.raises(ValueError, match="missing"):
+        chart.data(df)
+
+
+def timedelta_data():
+    from datetime import timedelta
+
+    dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+    df = pd.DataFrame(
+        {
+            "response_time": [timedelta(seconds=i * 100) for i in range(30)],
+        },
+        index=dates,
+    )
+    return df
+
+
+def test_chart_auto_discovers_timedelta_columns():
+    df = timedelta_data()
+    chart = ops.Chart()
+    plots = chart._plots(df)
+    assert len(plots) > 0
+    # Should have series for the timedelta column
+    series_labels = [s.label for p in plots for s in p.series]
+    assert "response_time" in series_labels
+
+
+def test_chart_converts_timedelta_to_seconds():
+    df = timedelta_data()
+    chart = ops.Chart()
+    plot_data = chart.data(df)
+    # The data should be numeric (total_seconds), not timedelta
+    for d in plot_data:
+        for col in d.columns:
+            assert pd.api.types.is_numeric_dtype(d[col].dropna()), (
+                f"Column {col} should be numeric after timedelta conversion"
+            )
+
+
+def test_chart_uses_timedelta_formatter_for_timedelta_columns():
+    from nooda.chart.formatter import seconds_to_day_hours
+
+    df = timedelta_data()
+    chart = ops.Chart()
+    chart.data(df)
+    assert chart.formatter is seconds_to_day_hours
+
+
+def test_nooda_plot_with_timedelta():
+    import nooda
+    from datetime import timedelta
+
+    dates = pd.date_range(start="2023-01-01", periods=30, freq="D")
+    df = pd.DataFrame(
+        {"response_time": [timedelta(seconds=i * 100) for i in range(30)]},
+        index=dates,
+    )
+    fig = nooda.plot(df)
+    assert fig is not None
+
+
+def test_chart_preserves_explicit_formatter_with_timedelta():
+    from matplotlib.ticker import StrMethodFormatter
+
+    df = timedelta_data()
+    fmt = StrMethodFormatter("{x:.0f}s")
+    chart = ops.Chart(formatter=fmt)
+    chart.data(df)
+    assert chart.formatter is fmt
+
+
+def test_chart_views_selects_daily_only():
+    df = data()
+    chart = ops.Chart(views=["daily"])
+    plots = chart._plots(df)
+    assert len(plots) == 1
+    assert isinstance(plots[0], ops.Daily)
+
+
+def test_chart_views_selects_weekly_and_monthly():
+    df = data()
+    chart = ops.Chart(views=["weekly", "monthly"])
+    plots = chart._plots(df)
+    assert len(plots) == 2
+    assert isinstance(plots[0], ops.Weekly)
+    assert isinstance(plots[1], ops.Monthly)
+
+
+def test_chart_views_invalid_value_raises():
+    df = data()
+    chart = ops.Chart(views=["hourly"])
+    with pytest.raises(ValueError, match="hourly"):
+        chart._plots(df)
+
+
+def test_nooda_plot_with_views():
+    import nooda
+
+    df = data()
+    fig = nooda.plot(df, views=["daily", "monthly"])
+    axes = fig.get_axes()
+    assert len(axes) == 2
+
+
+def test_nooda_ratio_plot_with_views():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["daily"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Daily)
+
+
+def test_nooda_ratio_plot_with_views_monthly_includes_yoy():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["monthly"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Monthly)
+    # Monthly should include the YoY series
+    labels = [s.label for s in chart.plots[0].series]
+    assert any("YoY" in l for l in labels)
+
+
+def test_nooda_ratio_plot_with_views_no_yoy():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot(
+        "num_valid", "total_num", views=["monthly"], show_yoy=False
+    )
+    labels = [s.label for s in chart.plots[0].series]
+    assert not any("YoY" in l for l in labels)
+
+
+def test_nooda_ratio_plot_with_views_daily_includes_wow():
+    import nooda
+
+    chart = nooda.ratio_plot("num_valid", "total_num", views=["daily"])
+    assert len(chart.plots) == 1
+    assert isinstance(chart.plots[0], ops.Daily)
+    labels = [s.label for s in chart.plots[0].series]
+    assert any("WoW" in l for l in labels)
+
+
+def test_nooda_ratio_plot_with_views_no_wow():
+    import nooda
+
+    chart = nooda.ratio_plot(
+        "num_valid", "total_num", views=["daily"], show_wow=False
+    )
+    labels = [s.label for s in chart.plots[0].series]
+    assert not any("WoW" in l for l in labels)
+
+
+def test_chart_shows_legend_by_default():
+    df = data()
+    chart = ops.Chart()
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is not None
+
+
+def test_chart_hides_legend_when_show_legend_false():
+    df = data()
+    chart = ops.Chart(show_legend=False)
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None
+
+
+def test_nooda_plot_hides_legend_when_show_legend_false():
+    import nooda
+
+    df = data()
+    fig = nooda.plot(df, show_legend=False)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None
+
+
+def test_nooda_ratio_plot_hides_legend_when_show_legend_false():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", show_legend=False)
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None

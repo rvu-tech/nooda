@@ -1,17 +1,20 @@
-import pandas as pd
-import matplotlib.ticker
-import matplotlib.pyplot as plt
-import numpy as np
-
 from calendar import monthrange
 from collections import namedtuple
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
-from pandas.core.groupby import DataFrameGroupBy
-from matplotlib.dates import num2date
-from matplotlib.ticker import Formatter, StrMethodFormatter, FuncFormatter
-from typing import Optional, Callable, TypeVar
+from datetime import date, datetime
+from typing import Callable, Optional, TypeVar
 
+import matplotlib.pyplot as plt
+import matplotlib.ticker
+import numpy as np
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+from matplotlib.dates import num2date
+from matplotlib.ticker import Formatter, FuncFormatter, StrMethodFormatter
+
+from nooda.chart.formatter import seconds_to_day_hours
+from pandas.core.groupby import DataFrameGroupBy
+
+import nooda.chart.fonts
 
 T = TypeVar("T")
 
@@ -28,6 +31,14 @@ AnnotationStyle = namedtuple(
 )
 
 Bounds = namedtuple("Bounds", ["earliest", "latest"])
+
+
+def time_window(bounds):
+    def fn(row):
+        dt = pd.to_datetime(row.index).to_pydatetime()
+        return np.logical_and(dt >= bounds.earliest, dt < bounds.latest)
+
+    return fn
 
 
 class Series:
@@ -51,13 +62,32 @@ class Series:
         self.style = style
         self.annotations = annotations
 
+    def data(
+        self,
+        df: pd.DataFrame,
+        bounds: Bounds,
+        clamp: Callable[[datetime], datetime],
+    ) -> pd.DataFrame:
+        series_df = df.copy()
 
-def time_window(bounds):
-    def fn(row):
-        dt = pd.to_datetime(row.index).to_pydatetime()
-        return np.logical_and(dt >= bounds.earliest, dt < bounds.latest)
+        if self.offset is not None:
+            series_df.index = (
+                pd.to_datetime(series_df.index).to_pydatetime() + self.offset
+            )
 
-    return fn
+        data = (
+            series_df.loc[time_window(bounds)]
+            .groupby(clamp)[self.columns]
+            .apply(self.agg)
+            .dropna()
+        )
+
+        if isinstance(data, pd.DataFrame):
+            data.columns = [self.label]
+        elif isinstance(data, pd.Series):
+            data.name = self.label
+
+        return data
 
 
 class Plot:
@@ -67,7 +97,10 @@ class Plot:
         increments: int,
         range_columns: Optional[list[str]] = None,
     ):
-        assert len([s for s in series if s.offset is None]) > 0
+        if not any(s.offset is None for s in series):
+            raise ValueError(
+                "At least one series must have no time offset (offset=None)"
+            )
 
         self.series = series
         self.increments = increments
@@ -77,36 +110,9 @@ class Plot:
         bounds = self._bounds(raw)
 
         return pd.concat(
-            [self._series_data(raw, bounds, series) for series in self.series],
+            [series.data(raw, bounds, self._clamp) for series in self.series],
             axis=1,
         )
-
-    def _series_data(
-        self,
-        df: pd.DataFrame,
-        bounds: Bounds,
-        series: Series,
-    ) -> pd.DataFrame:
-        series_df = df.copy()
-
-        if series.offset is not None:
-            series_df.index = (
-                pd.to_datetime(series_df.index).to_pydatetime() + series.offset
-            )
-
-        data = (
-            series_df.loc[time_window(bounds)]
-            .groupby(self._clamp)[series.columns]
-            .apply(series.agg)
-            .dropna()
-        )
-
-        if isinstance(data, pd.DataFrame):
-            data.columns = [series.label]
-        elif isinstance(data, pd.Series):
-            data.name = series.label
-
-        return data
 
     def _plot(
         self,
@@ -244,48 +250,241 @@ class Monthly(Plot):
         return datetime(dt.year, dt.month, 1, tzinfo=tzinfo)
 
 
+LINE_STYLES = ["-", "--", "-.", ":"]
+ANNOTATION_STYLES = [
+    AnnotationStyle(),
+    None,
+    None,
+    None,
+]
+MARKER_SIZE = [3, 0, 0, 0]
+
+
+def offset_series(
+    series: list[Series], days: int, alpha: float, label_suffix: str = ""
+):
+    return [
+        Series(
+            columns=s.columns,
+            label=s.label + label_suffix,
+            agg=s.agg,
+            offset=relativedelta(days=days),
+            style=SeriesStyle(
+                color=s.style.color,
+                linestyle=s.style.linestyle,
+                marker=s.style.marker,
+                markersize=s.style.markersize,
+                alpha=alpha,
+            ),
+        )
+        for s in series
+    ]
+
+
 class Chart:
+    _DEFAULT_FORMATTER = StrMethodFormatter("{x:,.0f}")
+
+    VIEWS_MAP = {
+        "daily": Daily,
+        "weekly": Weekly,
+        "monthly": Monthly,
+    }
+
     def __init__(
         self,
         title: Optional[str] = None,
-        formatter: Formatter | str = StrMethodFormatter("{x:,.0f}"),
-        plots: list[type[Plot]] = [],
+        formatter: Formatter | str = None,
+        plots: Optional[list[Plot]] = None,
         height: int = 5,
         width_increment: float = 0.7,
         y_limits: Optional[tuple[float, float]] = None,
+        agg: Callable[[list[T]], T] = np.sum,
+        views: Optional[list[str]] = None,
+        show_legend: bool = True,
     ):
-        assert len(plots) > 0
-
+        formatter_is_default = formatter is None
+        if formatter_is_default:
+            formatter = StrMethodFormatter("{x:,.0f}")
         if isinstance(formatter, str):
             formatter = StrMethodFormatter(formatter)
 
+        self._formatter_is_default = formatter_is_default
         self.title = title
         self.formatter = formatter
-        self.plots = plots
+        self.plots = plots if plots is not None else []
         self.height = height
         self.width_increment = width_increment
         self.y_limits = y_limits
+        self.agg = agg
+        self.views = views
+        self.show_legend = show_legend
+
+    def _prepare_df(self, df):
+        timedelta_cols = df.select_dtypes(include="timedelta64").columns
+        if len(timedelta_cols) == 0:
+            return df
+
+        df = df.copy()
+        for col in timedelta_cols:
+            df[col] = df[col].dt.total_seconds()
+
+        if self._formatter_is_default:
+            self.formatter = seconds_to_day_hours
+
+        return df
+
+    def _plots(self, df):
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError(
+                "DataFrame must have a DatetimeIndex. "
+                "Call df.set_index('date_column') first."
+            )
+
+        if len(self.plots) > 0:
+            return self.plots
+
+        # find numeric columns in dataframe
+        numeric_columns = df.select_dtypes(include=np.number).columns
+
+        if len(numeric_columns) == 0:
+            raise Exception("dataframe must have numeric columns")
+
+        if len(numeric_columns) > len(LINE_STYLES):
+            raise Exception(
+                f"too many numeric columns ({len(numeric_columns)}) for line styles ({len(LINE_STYLES)})"
+            )
+
+        series = [
+            Series(
+                columns=col,
+                label=col,
+                agg=self.agg,
+                style=SeriesStyle(
+                    color="black",
+                    linestyle=line_style,
+                    marker="o",
+                    markersize=marker_size,
+                ),
+                annotations=annotation_style,
+            )
+            for (col, line_style, annotation_style, marker_size) in zip(
+                numeric_columns,
+                LINE_STYLES[: len(numeric_columns)],
+                ANNOTATION_STYLES[: len(numeric_columns)],
+                MARKER_SIZE[: len(numeric_columns)],
+            )
+        ]
+
+        if self.views is not None:
+            return self._plots_for_views(series)
+
+        days_in_index = (df.index.max() - df.index.min()).days
+
+        if days_in_index < 14:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=days_in_index,
+                )
+            ]
+        elif days_in_index < 31:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=4),
+            ]
+        elif days_in_index < 92:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=6),
+            ]
+        elif days_in_index >= 92:
+            return [
+                Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ),
+                Weekly(series=series, weeks=6),
+                Monthly(
+                    series=series
+                    + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    months=12,
+                ),
+            ]
+
+    def _plots_for_views(self, series):
+        plots = []
+        for view in self.views:
+            if view not in self.VIEWS_MAP:
+                raise ValueError(
+                    f"Unknown view '{view}'. "
+                    f"Valid views: {sorted(self.VIEWS_MAP.keys())}"
+                )
+
+            if view == "daily":
+                plots.append(Daily(
+                    series=series
+                    + offset_series(series, days=7, alpha=0.4, label_suffix=" (WoW)"),
+                    days=7,
+                ))
+            elif view == "weekly":
+                plots.append(Weekly(series=series, weeks=6))
+            elif view == "monthly":
+                plots.append(Monthly(
+                    series=series
+                    + offset_series(series, days=365, alpha=0.4, label_suffix=" (YoY)"),
+                    months=12,
+                ))
+
+        return plots
+
+    def _validated_plots(self, df):
+        plots = self._plots(df)
+
+        df_columns = set(df.columns)
+        for plot in plots:
+            for series in plot.series:
+                missing = [c for c in series.columns if c not in df_columns]
+                if missing:
+                    raise ValueError(
+                        f"Column(s) {missing} not found in DataFrame. "
+                        f"Available columns: {sorted(df_columns)}"
+                    )
+
+        return plots
 
     def plot(self, df):
+        df = self._prepare_df(df)
+        plots = self._validated_plots(df)
+
         fig, axs = plt.subplots(
             1,
-            len(self.plots),
+            len(plots),
             figsize=(
-                sum(plot.increments for plot in self.plots) * self.width_increment,
+                sum(plot.increments for plot in plots) * self.width_increment,
                 self.height,
             ),
-            gridspec_kw={"width_ratios": [plot.increments for plot in self.plots]},
+            gridspec_kw={"width_ratios": [plot.increments for plot in plots]},
             sharey=True,
         )
 
         # if there's only one plot, axs is a single axis, not an array
-        if len(self.plots) == 1:
+        if len(plots) == 1:
             axs = [axs]
 
         if self.title is not None:
             fig.suptitle(self.title)
 
-        for pos, ax, plot in zip(range(len(self.plots)), axs, self.plots):
+        for pos, ax, plot in zip(range(len(plots)), axs, plots):
             plot._plot(ax, df, self.formatter)
 
             if self.y_limits is not None:
@@ -307,7 +506,8 @@ class Chart:
             for label in ax.get_xticklabels():
                 label.set_fontweight(700)
 
-            _add_legend(ax, [s.label for s in plot.series])
+            if self.show_legend:
+                _add_legend(ax, [s.label for s in plot.series])
 
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.12)
@@ -315,7 +515,8 @@ class Chart:
         return fig
 
     def data(self, df):
-        return [plot.data(df) for plot in self.plots]
+        df = self._prepare_df(df)
+        return [plot.data(df) for plot in self._validated_plots(df)]
 
 
 def _add_legend(ax, labels):

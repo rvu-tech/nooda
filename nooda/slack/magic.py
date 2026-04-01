@@ -1,7 +1,6 @@
 import IPython
 import io
 import json
-import nooda.publish
 import os
 import sys
 
@@ -43,6 +42,11 @@ def _var_or_string(raw, ip):
     default=None,
 )
 @argument(
+    "--token",
+    help="Pass the token in via an argument instead of the SLACK_TOKEN env var",
+    default=None,
+)
+@argument(
     "channel",
     type=str,
     help="the channel to send the message to. empty string will skip",
@@ -56,8 +60,9 @@ def _slack_line_magic(line):
     channel = _var_or_string(args.channel, ip)
     message = _var_or_string(args.message, ip)
     markdown = _var_or_string(args.markdown, ip)
+    token = _var_or_string(args.token, ip)
 
-    response = send(channel, message, markdown=markdown)
+    response = send(channel, message, markdown=markdown, token=token)
 
     ip.user_ns[LAST_RESPONSE_VAR] = response
     if response.successful:
@@ -91,4 +96,10 @@ def _slack_thread_line_magic(line):
     message = _var_or_string(args.message, ip)
     markdown = _var_or_string(args.markdown, ip)
 
-    send(last_response.channel, message, markdown=markdown, thread_ts=last_response.ts)
+    send(
+        last_response.channel,
+        message,
+        markdown=markdown,
+        thread_ts=last_response.ts,
+        token=last_response.token,
+    )

@@ -21,7 +21,7 @@ def get_file_thread(file, channel_id):
     return channel_share[0]["ts"]
 
 
-Response = namedtuple("Response", ["channel", "ts", "successful"])
+Response = namedtuple("Response", ["channel", "ts", "successful", "token"])
 
 
 def send(
@@ -29,18 +29,24 @@ def send(
     val: Any,
     markdown: Optional[str] = None,
     thread_ts: Optional[str] = None,
+    token: Optional[str] = None,
 ) -> Response:
-    slack_token = os.getenv("SLACK_TOKEN")
+    if token is not None:
+        slack_token = token
+    else:
+        slack_token = os.getenv("SLACK_TOKEN")
 
     if slack_token is None:
         print("SLACK_TOKEN not set, skipping slack send", file=sys.stderr)
-        return Response(channel, None, False)
+        return Response(channel, None, False, None)
 
     if len(channel) == 0:
         print("channel is empty, skipping slack send", file=sys.stderr)
-        return Response(channel, None, False)
+        return Response(channel, None, False, None)
 
-    slack_client = WebClient(token=os.getenv("SLACK_TOKEN"))
+    print(f"Sending to {channel}", file=sys.stderr)
+
+    slack_client = WebClient(token=slack_token)
 
     ts = None
 
@@ -68,13 +74,21 @@ def send(
 
         file_id = upload_response["files"][0]["id"]
 
-        while ts is None:
-            # the message thread associated with the file upload isn't reliaibly in
-            # the response. yay eventual consistency!
+        # the message thread associated with the file upload isn't reliably in
+        # the response. yay eventual consistency!
+        max_retries = 15
+        for _ in range(max_retries):
             time.sleep(2)
-
             file_response = slack_client.files_info(file=file_id)
             ts = get_file_thread(file_response["file"], channel)
+            if ts is not None:
+                break
+
+        if ts is None:
+            print(
+                "Warning: could not resolve thread_ts for file upload",
+                file=sys.stderr,
+            )
     elif "to_markdown" in dir(val):
         message = f"""```{val.to_markdown()}```
         """
@@ -88,4 +102,4 @@ def send(
     else:
         raise TypeError(f"unsupported type: {type(val)}")
 
-    return Response(channel, ts, True)
+    return Response(channel, ts, True, slack_token)

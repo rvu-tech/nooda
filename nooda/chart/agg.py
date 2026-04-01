@@ -1,5 +1,5 @@
+import numpy as np
 import pandas as pd
-
 from dateutil.relativedelta import relativedelta
 
 
@@ -8,6 +8,16 @@ def ratio(num, denom):
         return row[num].sum() / row[denom].sum()
 
     return fn
+
+
+def median(xs):
+    if isinstance(xs, pd.Series):
+        vals = xs[xs.isna() == False]
+    else:
+        assert len(xs.columns) == 1  # only expect frames with one column
+        vals = xs[xs.isna().any(axis=1) == False]
+
+    return np.median(vals)
 
 
 def avg_daily(xs):
