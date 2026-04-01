@@ -300,6 +300,7 @@ class Chart:
         y_limits: Optional[tuple[float, float]] = None,
         agg: Callable[[list[T]], T] = np.sum,
         views: Optional[list[str]] = None,
+        show_legend: bool = True,
     ):
         formatter_is_default = formatter is None
         if formatter_is_default:
@@ -316,6 +317,7 @@ class Chart:
         self.y_limits = y_limits
         self.agg = agg
         self.views = views
+        self.show_legend = show_legend
 
     def _prepare_df(self, df):
         timedelta_cols = df.select_dtypes(include="timedelta64").columns
@@ -504,7 +506,8 @@ class Chart:
             for label in ax.get_xticklabels():
                 label.set_fontweight(700)
 
-            _add_legend(ax, [s.label for s in plot.series])
+            if self.show_legend:
+                _add_legend(ax, [s.label for s in plot.series])
 
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.12)

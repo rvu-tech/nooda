@@ -365,3 +365,42 @@ def test_nooda_ratio_plot_with_views_no_yoy():
     )
     labels = [s.label for s in chart.plots[0].series]
     assert not any("YoY" in l for l in labels)
+
+
+def test_chart_shows_legend_by_default():
+    df = data()
+    chart = ops.Chart()
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is not None
+
+
+def test_chart_hides_legend_when_show_legend_false():
+    df = data()
+    chart = ops.Chart(show_legend=False)
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None
+
+
+def test_nooda_plot_hides_legend_when_show_legend_false():
+    import nooda
+
+    df = data()
+    fig = nooda.plot(df, show_legend=False)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None
+
+
+def test_nooda_ratio_plot_hides_legend_when_show_legend_false():
+    import nooda
+
+    df = data()
+    chart = nooda.ratio_plot("num_valid", "total_num", show_legend=False)
+    fig = chart.plot(df)
+    axes = fig.get_axes()
+    legend = axes[0].get_legend()
+    assert legend is None

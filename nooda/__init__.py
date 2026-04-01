@@ -33,6 +33,7 @@ def plot(
     views: Optional[list[str]] = None,
     height: int = 5,
     width_increment: float = 0.7,
+    show_legend: bool = True,
 ):
     return Chart(
         title=title,
@@ -42,6 +43,7 @@ def plot(
         views=views,
         height=height,
         width_increment=width_increment,
+        show_legend=show_legend,
     ).plot(df)
 
 
@@ -65,6 +67,7 @@ def ratio_plot(
     views: Optional[list[str]] = None,
     height: int = 5,
     width_increment: float = 0.7,
+    show_legend: bool = True,
 ):
 
     ratio_columns = [numerator_column, denominator_column]
@@ -120,4 +123,5 @@ def ratio_plot(
         plots=plots,
         height=height,
         width_increment=width_increment,
+        show_legend=show_legend,
     )

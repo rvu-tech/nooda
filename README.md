@@ -48,3 +48,15 @@ chart.plot(df)
 ```
 
 Valid views: `"daily"`, `"weekly"`, `"monthly"`.
+
+### Hiding the legend
+
+The legend is shown by default. To hide it, pass `show_legend=False`:
+
+```python
+nooda.plot(df, show_legend=False)
+
+# Works with ratio_plot too
+chart = nooda.ratio_plot("num_valid", "total_num", show_legend=False)
+chart.plot(df)
+```
