@@ -31,8 +31,18 @@ def plot(
     y_limits: Optional[tuple[float, float]] = None,
     agg: Callable[[list[T]], T] = np.sum,
     views: Optional[list[str]] = None,
+    height: int = 5,
+    width_increment: float = 0.7,
 ):
-    return Chart(title=title, formatter=formatter, y_limits=y_limits, agg=agg, views=views).plot(df)
+    return Chart(
+        title=title,
+        formatter=formatter,
+        y_limits=y_limits,
+        agg=agg,
+        views=views,
+        height=height,
+        width_increment=width_increment,
+    ).plot(df)
 
 
 VIEWS_MAP = {
@@ -53,6 +63,8 @@ def ratio_plot(
     target_column: Optional[str] = None,
     show_yoy: bool = True,
     views: Optional[list[str]] = None,
+    height: int = 5,
+    width_increment: float = 0.7,
 ):
 
     ratio_columns = [numerator_column, denominator_column]
@@ -106,4 +118,6 @@ def ratio_plot(
         title=title,
         formatter=formatter,
         plots=plots,
+        height=height,
+        width_increment=width_increment,
     )
