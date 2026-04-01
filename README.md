@@ -33,6 +33,49 @@ data["value"] = np.random.randint(10000, 100000, data.shape[0])
 nooda.Chart().plot(data.set_index("day"))
 ```
 
+### Querying Grafana
+
+#### Prometheus / Mimir metrics
+
+```python
+from nooda.vendor.grafana import query_metrics
+
+df = query_metrics(
+    token="glsa_...",
+    grafana_url="https://grafana.example.com",
+    datasource_uid="prometheus-uid",
+    queries=[
+        {"name": "requests", "expr": 'sum(rate(http_requests_total[5m]))'},
+    ],
+    step="5m",
+)
+```
+
+#### Loki logs
+
+```python
+from nooda.vendor.grafana import query_logs
+
+# Log stream query
+df = query_logs(
+    token="glsa_...",
+    grafana_url="https://grafana.example.com",
+    datasource_uid="loki-uid",
+    query='{app="web"} |= "error"',
+)
+# Returns DataFrame with: timestamp, line, and label columns
+
+# Metric query over logs
+df = query_logs(
+    token="glsa_...",
+    grafana_url="https://grafana.example.com",
+    datasource_uid="loki-uid",
+    query='rate({app="web"} |= "error" [5m])',
+    step="1m",
+)
+# Returns DataFrame with: timestamp, value, and label columns
+```
+
 ### Selecting views
 
 By default, nooda auto-selects which time views (daily, weekly, monthly) to show
